@@ -37,7 +37,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Manca la chiave GOOGLE_PLACES_API_KEY" }, { status: 500 });
 
   const { query, comune, provincia } = await req.json();
-  const textQuery = `${query} a ${comune}${provincia ? ` (${provincia})` : ""}`;
+  // "B&B" da solo Google lo legge male: lo scriviamo per esteso
+  const what = String(query).replace(/\bb\s*&\s*b\b/gi, "bed and breakfast");
+  const textQuery = `${what} a ${comune}${provincia ? ` (${provincia})` : ""}`;
   const places: GPlace[] = [];
   let pageToken: string | undefined;
 
