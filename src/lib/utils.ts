@@ -141,3 +141,9 @@ export function formatPhone(phone: string | null | undefined): string {
   if (r) groups.push(r);
   return [cc, ...groups].filter(Boolean).join(" ");
 }
+
+/** Link del sito sempre completo (aggiunge https:// se manca) */
+export function siteUrl(website: string): string {
+  const w = website.trim();
+  return /^https?:\/\//i.test(w) ? w : `https://${w}`;
+}
