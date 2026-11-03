@@ -379,7 +379,7 @@ export default function RicercaPage() {
           </div>
           <div>
             <span className={label}>2. Dove?</span>
-            <div className="mb-2 inline-flex flex-wrap rounded-lg border border-slate-200 p-0.5 text-xs">
+            <div className="mb-2 grid grid-cols-3 rounded-lg border border-slate-200 p-0.5 text-xs">
               {(
                 [
                   ["provincia", "Provincia (più comuni)"],
