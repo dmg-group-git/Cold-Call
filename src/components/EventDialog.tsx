@@ -108,8 +108,8 @@ export function EventDialog({
           <span className={label}>Note nell&apos;evento</span>
           <textarea className={`${input} h-24`} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="flex justify-end gap-2">
+        {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
           <button className={btnSecondary} onClick={onClose}>
             Annulla
           </button>

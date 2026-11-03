@@ -11,16 +11,53 @@ import { LevelMeter } from "@/components/LevelMeter";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { EventDialog } from "@/components/EventDialog";
 import {
+  ArrowRight,
+  Ban,
+  CalendarClock,
+  Check,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock,
+  ExternalLink,
+  FileText,
+  Globe,
+  MapPin,
+  MessageCircle,
+  Mic,
+  PartyPopper,
+  Phone,
+  PhoneMissed,
+  PhoneOff,
+  RotateCcw,
+  Search,
+  SkipForward,
+  Sparkles,
+  Star,
+  ThumbsDown,
+  ThumbsUp,
+  User,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  Alert,
+  Avatar,
   Card,
+  CardTitle,
+  EmptyState,
+  Loading,
   Modal,
   PageTitle,
+  Spinner,
   StatusBadge,
   btnGreen,
+  btnLg,
   btnPrimary,
   btnRed,
   btnSecondary,
   input,
   label,
+  link,
 } from "@/components/ui";
 
 type Phase = "ready" | "calling" | "analyzing" | "result";
@@ -52,6 +89,8 @@ export default function ChiamatePage() {
   const [waOpen, setWaOpen] = useState<null | "wa_no_answer" | "wa_answered">(null);
   const [evOpen, setEvOpen] = useState<null | "videocall" | "richiamata">(null);
   const [dncOpen, setDncOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0);
 
   // timer chiamata (anche senza registrazione)
   useEffect(() => {
@@ -214,7 +253,8 @@ export default function ChiamatePage() {
   }
 
   async function saveAndNext() {
-    if (!lead) return;
+    if (!lead || saving) return;
+    setSaving(true);
     if (interactionId) {
       await supabase
         .from("interactions")
@@ -241,7 +281,9 @@ export default function ChiamatePage() {
       upd.next_action_at = null;
     }
     await supabase.from("leads").update(upd).eq("id", lead.id);
+    setSessionCount((n) => n + 1);
     await loadNext();
+    setSaving(false);
   }
 
   function skip() {
@@ -249,17 +291,59 @@ export default function ChiamatePage() {
     loadNext();
   }
 
-  if (loading || loadingData) return <p className="text-slate-500">Carico…</p>;
+  // scorciatoie da tastiera: C chiama, N non risponde, S salta, T termina, 1-4 esito, Invio salva
+  const keyHandler = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    keyHandler.current = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || !lead) return;
+      const t = e.target as HTMLElement;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable) return;
+      if (waOpen || evOpen || dncOpen) return;
+      const k = e.key.toLowerCase();
+      if (phase === "ready") {
+        if (k === "c") startCall();
+        else if (k === "n") noAnswer();
+        else if (k === "s") skip();
+        else return;
+      } else if (phase === "calling") {
+        if (k === "t") endCall();
+        else if (k === "n") noAnswer();
+        else return;
+      } else if (phase === "result") {
+        const o = OUTCOMES[Number(k) - 1];
+        if (o) setOutcome(o.value);
+        else if (k === "enter" && t.tagName !== "BUTTON" && t.tagName !== "A") saveAndNext();
+        else return;
+      } else return;
+      e.preventDefault();
+    };
+  });
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => keyHandler.current(e);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
+  if (loading || loadingData) return <Loading text="Preparo la coda chiamate…" />;
 
   if (!lead)
     return (
       <>
         <PageTitle>Chiamate</PageTitle>
         <Card>
-          <p className="text-slate-700">Nessun lead da chiamare in coda. 🎉</p>
-          <p className="mt-2 text-sm text-slate-500">
-            Aggiungi nuovi lead da <Link className="text-blue-600 underline" href="/ricerca">Ricerca lead</Link>.
-          </p>
+          <EmptyState
+            icon={PartyPopper}
+            title="Coda vuota, ottimo lavoro!"
+            action={
+              <Link className={btnPrimary} href="/ricerca">
+                <Search size={16} /> Trova nuovi lead
+              </Link>
+            }
+          >
+            {sessionCount > 0
+              ? `Hai lavorato ${sessionCount} lead in questa sessione. Non ci sono altri lead da chiamare adesso.`
+              : "Non ci sono lead da chiamare adesso. Le richiamate programmate compariranno qui all'ora giusta."}
+          </EmptyState>
         </Card>
       </>
     );
@@ -267,173 +351,298 @@ export default function ChiamatePage() {
   const callScript = scripts.find((s) => s.kind === "call");
   const appointment = analysis?.data_appuntamento ?? null;
   const prettyDate = appointment ? prettyLocal(appointment) : "";
+  const stepIndex = phase === "ready" ? 0 : phase === "result" ? 2 : 1;
 
   return (
     <>
-      <PageTitle sub={`${queueCount} lead in coda`}>Chiamate</PageTitle>
+      <PageTitle
+        sub={
+          <>
+            <b className="text-slate-700">{queueCount}</b> lead in coda
+            {sessionCount > 0 && (
+              <>
+                {" "}· <b className="text-slate-700">{sessionCount}</b> fatti in questa sessione
+              </>
+            )}
+          </>
+        }
+        actions={<Stepper index={stepIndex} />}
+      >
+        Chiamate
+      </PageTitle>
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* SCHEDA LEAD */}
-        <Card className="lg:col-span-2">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h2 className="text-xl font-semibold">{lead.name}</h2>
-              <p className="text-sm text-slate-500">
-                {[lead.city, lead.province].filter(Boolean).join(" · ")}
-              </p>
-            </div>
-            <StatusBadge status={lead.status} />
-          </div>
-          <dl className="mt-4 space-y-1 text-sm">
-            <div><dt className="inline text-slate-500">Telefono: </dt><dd className="inline font-medium">{lead.phone}</dd></div>
-            {lead.contact_person && <div><dt className="inline text-slate-500">Referente: </dt><dd className="inline">{lead.contact_person}</dd></div>}
-            {lead.website && <div><dt className="inline text-slate-500">Sito: </dt><dd className="inline"><a className="text-blue-600 underline" href={lead.website} target="_blank">{lead.website.replace(/^https?:\/\//, "").slice(0, 40)}</a></dd></div>}
-            {lead.rating != null && <div><dt className="inline text-slate-500">Google: </dt><dd className="inline">★ {lead.rating} ({lead.reviews_count} recensioni)</dd></div>}
-            {lead.next_action_at && <div><dt className="inline text-slate-500">Richiamata prevista: </dt><dd className="inline">{formatDateTime(lead.next_action_at)}</dd></div>}
-            {lead.notes && <div className="pt-2 text-slate-600">{lead.notes}</div>}
-          </dl>
-          <Link href={`/crm/${lead.id}`} className="mt-3 inline-block text-sm text-blue-600 underline" target="_blank">
-            Apri scheda completa
-          </Link>
-
-          {/* CONTROLLI CHIAMATA */}
-          <div className="mt-6 border-t border-slate-100 pt-4">
-            {phase === "ready" && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={recordEnabled} onChange={(e) => setRecordEnabled(e.target.checked)} />
-                  Registra la chiamata {settings?.audio_device_label ? `(${settings.audio_device_label})` : ""}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button className={btnGreen} onClick={startCall}>📞 Chiama</button>
-                  <button className={btnSecondary} onClick={noAnswer}>Non risponde</button>
-                  <button className={btnSecondary} onClick={skip}>Salta</button>
-                </div>
-                <p className="text-xs text-slate-500">
-                  Vivavoce: tieni l&apos;audio della chiamata sugli altoparlanti del Mac (niente cuffie) così il microfono sente anche il cliente.
-                </p>
-              </div>
-            )}
-
-            {phase === "calling" && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl font-semibold tabular-nums">{formatDuration(callSeconds)}</span>
-                  {isRecording ? (
-                    <span className="flex items-center gap-1 text-sm text-red-600"><span className="h-2 w-2 animate-pulse rounded-full bg-red-600" /> registrazione</span>
-                  ) : (
-                    <span className="text-sm text-slate-500">non registrata</span>
+        <div className="space-y-6 lg:col-span-2">
+          <Card className="overflow-hidden p-0">
+            <div className="p-5">
+              <div className="flex items-start gap-3">
+                <Avatar name={lead.name} size="lg" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate text-lg font-semibold text-slate-900">{lead.name}</h2>
+                    <StatusBadge status={lead.status} />
+                  </div>
+                  {(lead.city || lead.province) && (
+                    <p className="mt-0.5 flex items-center gap-1 text-sm text-slate-500">
+                      <MapPin size={13} /> {[lead.city, lead.province].filter(Boolean).join(" · ")}
+                    </p>
                   )}
                 </div>
-                {isRecording && (
-                  <>
-                    <LevelMeter level={rec.level} />
-                    <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                      Ricorda di dire: <i>&quot;La chiamata è registrata per finalità di servizio, va bene?&quot;</i>
-                      <button className="mt-2 block text-xs font-medium underline" onClick={stopRecordingOnly}>
-                        Il cliente non vuole: interrompi e cancella la registrazione
-                      </button>
-                    </div>
-                  </>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <button className={btnRed} onClick={endCall}>⏹ Termina</button>
-                  <button className={btnSecondary} onClick={noAnswer}>Non risponde</button>
-                  <a className={btnSecondary} href={telLink(lead.phone!)}>Richiama</a>
-                </div>
               </div>
-            )}
 
-            {phase === "analyzing" && (
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
-                Trascrivo e analizzo la chiamata con Claude…
-              </div>
-            )}
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-          </div>
-        </Card>
+              <a
+                href={telLink(lead.phone!)}
+                className="mt-4 flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums hover:text-brand-700"
+              >
+                <Phone size={20} className="text-slate-400" /> {lead.phone}
+              </a>
+
+              <dl className="mt-4 grid gap-2 text-sm">
+                {lead.contact_person && <Info icon={User} label="Referente">{lead.contact_person}</Info>}
+                {lead.website && (
+                  <Info icon={Globe} label="Sito">
+                    <a className={link} href={lead.website} target="_blank">
+                      {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "").slice(0, 36)}
+                    </a>
+                  </Info>
+                )}
+                {lead.rating != null && (
+                  <Info icon={Star} label="Google">
+                    {lead.rating} <span className="text-slate-400">({lead.reviews_count} recensioni)</span>
+                  </Info>
+                )}
+                {lead.next_action_at && (
+                  <Info icon={CalendarClock} label="Richiamata">{formatDateTime(lead.next_action_at)}</Info>
+                )}
+              </dl>
+              {lead.notes && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{lead.notes}</p>}
+              <Link href={`/crm/${lead.id}`} className={`${link} mt-3 inline-flex items-center gap-1 text-sm`} target="_blank">
+                Apri scheda completa <ExternalLink size={13} />
+              </Link>
+            </div>
+
+            {/* CONTROLLI CHIAMATA */}
+            <div className="border-t border-slate-100 bg-slate-50/60 p-5">
+              {phase === "ready" && (
+                <div className="space-y-4">
+                  <button className={`${btnGreen} ${btnLg} w-full`} onClick={startCall}>
+                    <Phone size={18} /> Chiama ora <kbd className="ml-1">C</kbd>
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className={btnSecondary} onClick={noAnswer}>
+                      <PhoneMissed size={15} /> Non risponde <kbd>N</kbd>
+                    </button>
+                    <button className={btnSecondary} onClick={skip}>
+                      <SkipForward size={15} /> Salta <kbd>S</kbd>
+                    </button>
+                  </div>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={recordEnabled} onChange={(e) => setRecordEnabled(e.target.checked)} />
+                    <Mic size={14} className="text-slate-400" />
+                    Registra la chiamata
+                    {settings?.audio_device_label && (
+                      <span className="truncate text-xs text-slate-400">({settings.audio_device_label})</span>
+                    )}
+                  </label>
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    Tieni l&apos;audio sugli altoparlanti del Mac (niente cuffie), così il microfono sente anche il cliente.
+                  </p>
+                </div>
+              )}
+
+              {phase === "calling" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-4xl font-semibold tracking-tight tabular-nums text-slate-900">
+                      {formatDuration(callSeconds)}
+                    </span>
+                    {isRecording ? (
+                      <span className="flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-rose-600" /> Registrazione
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">Non registrata</span>
+                    )}
+                  </div>
+                  {isRecording && (
+                    <>
+                      <LevelMeter level={rec.level} />
+                      <Alert tone="warning">
+                        Ricorda di dire: <i>&quot;La chiamata è registrata per finalità di servizio, va bene?&quot;</i>
+                        <button className="mt-1.5 block text-xs font-medium underline" onClick={stopRecordingOnly}>
+                          Il cliente non vuole: interrompi e cancella la registrazione
+                        </button>
+                      </Alert>
+                    </>
+                  )}
+                  <button className={`${btnRed} ${btnLg} w-full`} onClick={endCall}>
+                    <PhoneOff size={18} /> Termina chiamata <kbd className="ml-1">T</kbd>
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className={btnSecondary} onClick={noAnswer}>
+                      <PhoneMissed size={15} /> Non risponde <kbd>N</kbd>
+                    </button>
+                    <a className={btnSecondary} href={telLink(lead.phone!)}>
+                      <RotateCcw size={15} /> Richiama
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {phase === "analyzing" && (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+                    <Sparkles size={22} className="animate-pulse" />
+                  </span>
+                  <div>
+                    <p className="font-medium text-slate-900">Analizzo la chiamata…</p>
+                    <p className="text-sm text-slate-500">Trascrizione e riassunto con Claude, pochi secondi.</p>
+                  </div>
+                </div>
+              )}
+
+              {phase === "result" && (
+                <p className="flex items-center gap-2 text-sm text-slate-600">
+                  <CheckCircle2 size={16} className="text-emerald-600" /> Chiamata conclusa: scegli l&apos;esito a destra.
+                </p>
+              )}
+              {error && <Alert tone="error" className="mt-3">{error}</Alert>}
+            </div>
+          </Card>
+        </div>
 
         {/* SCRIPT oppure ESITO */}
         <div className="lg:col-span-3">
           {phase !== "result" ? (
-            <Card>
-              <h3 className="mb-2 font-semibold">{callScript?.title ?? "Script"}</h3>
-              <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-slate-800">
-                {callScript ? fillTemplate(callScript.body, lead, settings) : "Nessuno script: crealo nella pagina Script."}
+            <Card className="lg:sticky lg:top-6">
+              <CardTitle icon={FileText}>{callScript?.title ?? "Script"}</CardTitle>
+              <div className="whitespace-pre-wrap text-[15px] leading-7 text-slate-800">
+                {callScript ? (
+                  fillTemplate(callScript.body, lead, settings)
+                ) : (
+                  <span className="text-slate-500">
+                    Nessuno script: crealo nella pagina <Link className={link} href="/script">Script</Link>.
+                  </span>
+                )}
               </div>
             </Card>
           ) : (
-            <Card className="space-y-5">
-              <h3 className="font-semibold">Esito della chiamata</h3>
+            <Card className="space-y-6">
+              <CardTitle icon={ClipboardCheck} sub="Controlla, conferma le azioni e passa al prossimo lead.">
+                Esito della chiamata
+              </CardTitle>
 
               {analysisError && (
-                <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                <Alert tone="error">
                   Analisi non riuscita: {analysisError}
                   {interactionId && (
-                    <button className="ml-2 underline" onClick={() => runAnalysis(interactionId)}>Riprova</button>
+                    <button className="ml-2 font-medium underline" onClick={() => runAnalysis(interactionId)}>
+                      Riprova
+                    </button>
+                  )}
+                </Alert>
+              )}
+
+              {analysis && (
+                <div className="space-y-2 rounded-xl border border-brand-100 bg-brand-50/50 p-4 text-sm text-slate-700">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                    <Sparkles size={13} /> Riassunto di Claude
+                  </div>
+                  <p className="text-slate-800">{analysis.riassunto}</p>
+                  {analysis.obiezioni.length > 0 && (
+                    <p>
+                      <b>Obiezioni:</b> {analysis.obiezioni.join("; ")}
+                    </p>
+                  )}
+                  <p>
+                    <b>Prossimo passo:</b> {analysis.prossimo_passo}
+                  </p>
+                  {appointment && (
+                    <p>
+                      <b>Data concordata:</b> {prettyDate}
+                    </p>
                   )}
                 </div>
               )}
 
-              {analysis && (
-                <div className="space-y-2 rounded-lg bg-slate-50 p-4 text-sm">
-                  <p>{analysis.riassunto}</p>
-                  {analysis.obiezioni.length > 0 && <p><b>Obiezioni:</b> {analysis.obiezioni.join("; ")}</p>}
-                  <p><b>Prossimo passo:</b> {analysis.prossimo_passo}</p>
-                  {appointment && <p><b>Data concordata:</b> {prettyDate}</p>}
-                </div>
-              )}
-
               <div>
-                <span className={label}>Esito {analysis ? "(proposto da Claude, puoi cambiarlo)" : ""}</span>
-                <div className="flex flex-wrap gap-2">
-                  {OUTCOMES.map((o) => (
-                    <button
-                      key={o.value}
-                      onClick={() => setOutcome(o.value)}
-                      className={`rounded-lg border px-3 py-1.5 text-sm ${
-                        outcome === o.value ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white"
-                      }`}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
+                <span className={label}>
+                  Esito {analysis && <span className="font-normal text-slate-400">(proposto da Claude, puoi cambiarlo)</span>}
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {OUTCOMES.map((o, i) => {
+                    const st = OUTCOME_STYLE[o.value];
+                    const sel = outcome === o.value;
+                    return (
+                      <button
+                        key={o.value}
+                        onClick={() => setOutcome(o.value)}
+                        className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-center text-sm font-medium transition ${
+                          sel ? st.on : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        }`}
+                      >
+                        <st.icon size={20} />
+                        {o.label.replace(" (no)", "")}
+                        <kbd className="absolute right-1.5 top-1.5">{i + 1}</kbd>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* AZIONI PROPOSTE: partono solo dopo conferma */}
               <div className="space-y-2">
-                <span className={label}>Azioni proposte</span>
+                <span className={label}>Azioni consigliate</span>
                 {outcome === "non_risponde" && (
-                  <ActionButton done={done.wa} onClick={() => setWaOpen("wa_no_answer")}>Inviamo il WhatsApp &quot;non risponde&quot;?</ActionButton>
+                  <ActionButton icon={MessageCircle} done={done.wa} onClick={() => setWaOpen("wa_no_answer")}>
+                    Inviamo il WhatsApp &quot;non risponde&quot;?
+                  </ActionButton>
                 )}
                 {outcome === "da_richiamare" && (
-                  <ActionButton done={done.recall} onClick={() => setEvOpen("richiamata")}>
+                  <ActionButton icon={CalendarClock} done={done.recall} onClick={() => setEvOpen("richiamata")}>
                     Fissiamo la richiamata{appointment ? ` il ${prettyDate}` : ""}?
                   </ActionButton>
                 )}
                 {outcome === "interessato" && (
                   <>
-                    <ActionButton done={done.wa} onClick={() => setWaOpen("wa_answered")}>Inviamo il WhatsApp con video e PDF?</ActionButton>
-                    <ActionButton done={done.meet} onClick={() => setEvOpen("videocall")}>
-                      Fissiamo la videocall{appointment && analysis?.tipo_appuntamento === "videocall" ? ` il ${prettyDate}` : ""}?
+                    <ActionButton icon={MessageCircle} done={done.wa} onClick={() => setWaOpen("wa_answered")}>
+                      Inviamo il WhatsApp con video e PDF?
                     </ActionButton>
-                    <ActionButton done={done.recall} onClick={() => setEvOpen("richiamata")}>Fissiamo una richiamata?</ActionButton>
+                    <ActionButton icon={Video} done={done.meet} onClick={() => setEvOpen("videocall")}>
+                      Fissiamo la videocall
+                      {appointment && analysis?.tipo_appuntamento === "videocall" ? ` il ${prettyDate}` : ""}?
+                    </ActionButton>
+                    <ActionButton icon={CalendarClock} done={done.recall} onClick={() => setEvOpen("richiamata")}>
+                      Fissiamo una richiamata?
+                    </ActionButton>
                   </>
                 )}
                 {outcome === "non_interessato" && (
-                  <ActionButton done={done.dnc} onClick={() => setDncOpen(true)}>Aggiungiamo a &quot;non contattare&quot;?</ActionButton>
+                  <ActionButton icon={Ban} done={done.dnc} onClick={() => setDncOpen(true)}>
+                    Aggiungiamo a &quot;non contattare&quot;?
+                  </ActionButton>
                 )}
               </div>
 
               <div>
                 <span className={label}>Note (facoltative)</span>
-                <textarea className={`${input} h-20`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <textarea
+                  className={`${input} h-20`}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Qualcosa da ricordare per la prossima volta…"
+                />
               </div>
 
-              <div className="flex justify-end">
-                <button className={btnPrimary} onClick={saveAndNext}>Salva e passa al prossimo →</button>
+              <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
+                <span className="hidden text-xs text-slate-400 sm:block">
+                  Premi <kbd>Invio</kbd> per salvare
+                </span>
+                <button className={`${btnPrimary} ${btnLg}`} onClick={saveAndNext} disabled={saving}>
+                  {saving ? <Spinner className="border-white/40 border-t-white" /> : null}
+                  Salva e passa al prossimo <ArrowRight size={18} />
+                </button>
               </div>
             </Card>
           )}
@@ -461,7 +670,10 @@ export default function ChiamatePage() {
           lead={lead}
           kind={evOpen}
           initialStart={
-            appointment && (analysis?.tipo_appuntamento === evOpen || analysis?.tipo_appuntamento === "nessuno" || evOpen === "richiamata" && outcome === "da_richiamare")
+            appointment &&
+            (analysis?.tipo_appuntamento === evOpen ||
+              analysis?.tipo_appuntamento === "nessuno" ||
+              (evOpen === "richiamata" && outcome === "da_richiamare"))
               ? appointment
               : null
           }
@@ -470,26 +682,95 @@ export default function ChiamatePage() {
         />
       )}
       <Modal open={dncOpen} onClose={() => setDncOpen(false)} title="Aggiungiamo a &quot;non contattare&quot;?">
-        <p className="text-sm text-slate-600">{lead.name} ({lead.phone}) non verrà più proposto in ricerche e chiamate.</p>
-        <div className="mt-4 flex justify-end gap-2">
-          <button className={btnSecondary} onClick={() => setDncOpen(false)}>Annulla</button>
-          <button className={btnRed} onClick={addToDnc}>Sì, aggiungi</button>
+        <p className="text-sm text-slate-600">
+          {lead.name} ({lead.phone}) non verrà più proposto in ricerche e chiamate.
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button className={btnSecondary} onClick={() => setDncOpen(false)}>
+            Annulla
+          </button>
+          <button className={btnRed} onClick={addToDnc}>
+            Sì, aggiungi
+          </button>
         </div>
       </Modal>
     </>
   );
 }
 
-function ActionButton({ done, onClick, children }: { done?: boolean; onClick: () => void; children: React.ReactNode }) {
+const OUTCOME_STYLE: Record<Outcome, { icon: LucideIcon; on: string }> = {
+  non_risponde: { icon: PhoneMissed, on: "border-slate-500 bg-slate-50 text-slate-900" },
+  da_richiamare: { icon: Clock, on: "border-amber-500 bg-amber-50 text-amber-900" },
+  interessato: { icon: ThumbsUp, on: "border-emerald-500 bg-emerald-50 text-emerald-900" },
+  non_interessato: { icon: ThumbsDown, on: "border-rose-500 bg-rose-50 text-rose-900" },
+};
+
+function Stepper({ index }: { index: number }) {
+  const steps = ["Pronto", "In chiamata", "Esito"];
+  return (
+    <ol className="flex items-center gap-2 text-xs font-medium">
+      {steps.map((s, i) => (
+        <li key={s} className="flex items-center gap-2">
+          <span
+            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
+              i === index
+                ? "bg-brand-600 text-white"
+                : i < index
+                  ? "bg-brand-50 text-brand-700"
+                  : "bg-white text-slate-400 ring-1 ring-slate-200"
+            }`}
+          >
+            {i < index ? <CheckCircle2 size={12} /> : <span>{i + 1}</span>}
+            {s}
+          </span>
+          {i < steps.length - 1 && <span className="h-px w-3 bg-slate-300" />}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Info({ icon: Icon, label: l, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon size={14} className="shrink-0 text-slate-400" />
+      <dt className="w-20 shrink-0 text-slate-500">{l}</dt>
+      <dd className="min-w-0 truncate text-slate-800">{children}</dd>
+    </div>
+  );
+}
+
+function ActionButton({
+  icon: Icon,
+  done,
+  onClick,
+  children,
+}: {
+  icon: LucideIcon;
+  done?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm ${
-        done ? "border-green-300 bg-green-50 text-green-800" : "border-slate-300 bg-white hover:bg-slate-50"
+      className={`group flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+        done
+          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+          : "border-slate-200 bg-white text-slate-800 hover:border-brand-300 hover:bg-brand-50/40"
       }`}
     >
-      <span>{children}</span>
-      <span>{done ? "✓ fatto" : "Conferma →"}</span>
+      <span
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+          done ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600 group-hover:bg-brand-100 group-hover:text-brand-700"
+        }`}
+      >
+        {done ? <Check size={16} /> : <Icon size={16} />}
+      </span>
+      <span className="flex-1 font-medium">{children}</span>
+      <span className={`text-xs font-medium ${done ? "text-emerald-700" : "text-brand-600"}`}>
+        {done ? "Fatto" : "Conferma →"}
+      </span>
     </button>
   );
 }

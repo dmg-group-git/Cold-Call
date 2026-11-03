@@ -4,7 +4,15 @@ import { createClient } from "@/lib/supabase/client";
 import type { Material } from "@/lib/types";
 import { useAppData } from "@/components/useAppData";
 import { MAX_FILE_MB, uploadMaterialFile } from "@/lib/materials";
-import { Card, PageTitle, btnPrimary, input, label } from "@/components/ui";
+import { ExternalLink, FileText, Link2, Paperclip, Plus, Trash2, Video, type LucideIcon } from "lucide-react";
+import { Alert, Card, CardTitle, EmptyState, Loading, PageTitle, btnPrimary, input, label } from "@/components/ui";
+
+const KIND: Record<Material["kind"], { icon: LucideIcon; label: string; color: string }> = {
+  video: { icon: Video, label: "Video", color: "bg-rose-50 text-rose-600" },
+  pdf: { icon: FileText, label: "PDF", color: "bg-sky-50 text-sky-600" },
+  file: { icon: FileText, label: "File", color: "bg-sky-50 text-sky-600" },
+  link: { icon: Link2, label: "Link", color: "bg-emerald-50 text-emerald-600" },
+};
 
 export default function MaterialiPage() {
   const { materials, loading, reload } = useAppData();
@@ -53,6 +61,7 @@ export default function MaterialiPage() {
         Materiali
       </PageTitle>
       <Card className="space-y-4">
+        <CardTitle icon={Plus}>Aggiungi materiale</CardTitle>
         <div className="grid gap-4 md:grid-cols-3">
           <div>
             <span className={label}>Tipo</span>
@@ -70,7 +79,7 @@ export default function MaterialiPage() {
             {kind === "file" ? (
               <>
                 <span className={label}>File (max {MAX_FILE_MB} MB)</span>
-                <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,video/*,application/pdf" className="text-sm" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,video/*,application/pdf" className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-700 hover:file:bg-brand-100" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               </>
             ) : (
               <>
@@ -80,29 +89,49 @@ export default function MaterialiPage() {
             )}
           </div>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button className={btnPrimary} onClick={add} disabled={busy || !title.trim()}>
-          {busy ? "Salvo…" : "Aggiungi"}
-        </button>
-        {kind === "file" && <p className="text-xs text-slate-500">Attenzione: chi ha il link del file può aprirlo (serve per mandarlo via WhatsApp).</p>}
+        {error && <Alert tone="error">{error}</Alert>}
+        <div className="flex flex-wrap items-center gap-3">
+          <button className={btnPrimary} onClick={add} disabled={busy || !title.trim()}>
+            <Plus size={16} /> {busy ? "Salvo…" : "Aggiungi"}
+          </button>
+          {kind === "file" && <p className="text-xs text-slate-500">Attenzione: chi ha il link del file può aprirlo (serve per mandarlo via WhatsApp).</p>}
+        </div>
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6 p-0">
         {loading ? (
-          <p className="text-slate-500">Carico…</p>
+          <div className="px-5"><Loading /></div>
         ) : !materials.length ? (
-          <p className="text-slate-500">Nessun materiale ancora.</p>
+          <EmptyState icon={Paperclip} title="Nessun materiale ancora">
+            Aggiungi video, PDF o link: potrai allegarli ai messaggi WhatsApp.
+          </EmptyState>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {materials.map((m) => (
-              <li key={m.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-                <div>
-                  <div className="font-medium">{m.title} <span className="text-xs text-slate-400">({m.kind})</span></div>
-                  <a className="break-all text-blue-600 underline" href={m.url} target="_blank">{m.url}</a>
-                </div>
-                <button className="text-xs text-red-600 underline" onClick={() => remove(m)}>Elimina</button>
-              </li>
-            ))}
+            {materials.map((m) => {
+              const k = KIND[m.kind] ?? KIND.link;
+              return (
+                <li key={m.id} className="flex items-center gap-3 px-5 py-3.5 text-sm">
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${k.color}`}>
+                    <k.icon size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-slate-900">{m.title}</div>
+                    <a className="inline-flex max-w-full items-center gap-1 truncate text-xs text-slate-500 hover:text-brand-600" href={m.url} target="_blank">
+                      <span className="truncate">{m.url.replace(/^https?:\/\//, "")}</span> <ExternalLink size={11} className="shrink-0" />
+                    </a>
+                  </div>
+                  <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 sm:inline">{k.label}</span>
+                  <button
+                    className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    onClick={() => remove(m)}
+                    aria-label="Elimina"
+                    title="Elimina"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>

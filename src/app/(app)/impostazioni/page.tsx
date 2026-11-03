@@ -4,7 +4,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Settings } from "@/lib/types";
 import { listAudioInputs } from "@/components/useRecorder";
-import { Card, PageTitle, btnPrimary, btnSecondary, input, label } from "@/components/ui";
+import { Building2, CalendarDays, Check, Mic, RefreshCw, Smartphone } from "lucide-react";
+import { Alert, Card, CardTitle, Loading, PageTitle, btnPrimary, btnSecondary, input, label, link } from "@/components/ui";
 
 const GOOGLE_MSG: Record<string, string> = {
   ok: "Google Calendar collegato ✓",
@@ -68,15 +69,25 @@ export default function ImpostazioniPage() {
     load();
   }
 
-  if (!s) return <p className="text-slate-500">Carico…</p>;
+  if (!s) return <Loading />;
   const set = (k: keyof Settings, v: string | number | null) => setS({ ...s, [k]: v });
 
   return (
     <>
-      <PageTitle>Impostazioni</PageTitle>
+      <PageTitle
+        sub="Dati azienda, audio e calendario."
+        actions={
+          <button className={btnPrimary} onClick={save}>
+            {saved ? <Check size={16} /> : null}
+            {saved ? "Salvato" : "Salva impostazioni"}
+          </button>
+        }
+      >
+        Impostazioni
+      </PageTitle>
       <div className="space-y-6">
         <Card className="space-y-4">
-          <h2 className="font-semibold">Dati azienda (usati negli script e nei messaggi)</h2>
+          <CardTitle icon={Building2} sub="Usati negli script e nei messaggi WhatsApp.">Dati azienda</CardTitle>
           <div className="grid gap-4 md:grid-cols-2">
             <div><span className={label}>Il tuo nome {"{mio_nome}"}</span><input className={input} value={s.sender_name ?? ""} onChange={(e) => set("sender_name", e.target.value)} /></div>
             <div><span className={label}>Nome azienda {"{azienda}"}</span><input className={input} value={s.company_name ?? ""} onChange={(e) => set("company_name", e.target.value)} /></div>
@@ -86,7 +97,7 @@ export default function ImpostazioniPage() {
         </Card>
 
         <Card className="space-y-4">
-          <h2 className="font-semibold">Audio per la registrazione</h2>
+          <CardTitle icon={Mic} sub="Il microfono usato per registrare le chiamate.">Audio per la registrazione</CardTitle>
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-[260px] flex-1">
               <span className={label}>Dispositivo di ingresso</span>
@@ -98,20 +109,22 @@ export default function ImpostazioniPage() {
                 {s.audio_device_id && !devices.length && <option value={s.audio_device_id}>{s.audio_device_label}</option>}
               </select>
             </div>
-            <button className={btnSecondary} onClick={loadDevices}>Aggiorna elenco</button>
+            <button className={btnSecondary} onClick={loadDevices}><RefreshCw size={15} /> Aggiorna elenco</button>
           </div>
           <p className="text-xs text-slate-500">
             Per iniziare va bene il microfono del Mac in vivavoce. Se la voce del cliente si sente male, segui la{" "}
-            <Link href="/test-audio#blackhole" className="text-blue-600 underline">guida BlackHole</Link> e scegli qui il &quot;dispositivo aggregato&quot;.
+            <Link href="/test-audio#blackhole" className={link}>guida BlackHole</Link> e scegli qui il &quot;dispositivo aggregato&quot;.
           </p>
         </Card>
 
         <Card className="space-y-4">
-          <h2 className="font-semibold">Google Calendar</h2>
-          {gMsg && <p className="rounded-lg bg-slate-100 p-2 text-sm">{gMsg}</p>}
+          <CardTitle icon={CalendarDays} sub="Per fissare videocall e richiamate direttamente dal sito.">Google Calendar</CardTitle>
+          {gMsg && <Alert tone={gMsg.includes("✓") ? "success" : "info"}>{gMsg}</Alert>}
           {s.google_email ? (
             <>
-              <p className="text-sm">Collegato come <b>{s.google_email}</b></p>
+              <p className="flex items-center gap-2 text-sm text-slate-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" /> Collegato come <b>{s.google_email}</b>
+              </p>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <span className={label}>Calendario</span>
@@ -124,7 +137,7 @@ export default function ImpostazioniPage() {
                   <input type="number" min={5} step={5} className={input} value={s.meeting_minutes} onChange={(e) => set("meeting_minutes", Number(e.target.value))} />
                 </div>
               </div>
-              <button className="text-sm text-red-600 underline" onClick={disconnect}>Scollega Google</button>
+              <button className="text-sm font-medium text-rose-600 hover:underline" onClick={disconnect}>Scollega Google</button>
             </>
           ) : (
             <a className={btnPrimary} href="/api/google/connect">Collega Google Calendar</a>
@@ -133,7 +146,12 @@ export default function ImpostazioniPage() {
 
         <Card>
           <details>
-            <summary className="cursor-pointer font-semibold">Il Mac non chiama? Attiva le chiamate da iPhone</summary>
+            <summary className="flex cursor-pointer list-none items-center gap-3 font-semibold text-slate-900">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                <Smartphone size={18} />
+              </span>
+              Il Mac non chiama? Attiva le chiamate da iPhone
+            </summary>
             <div className="mt-3 space-y-3 text-sm text-slate-700">
               <p>Se compare &quot;iPhone non è configurato per effettuare chiamate tramite il Mac&quot;:</p>
               <ol className="list-decimal space-y-1 pl-5">
@@ -151,7 +169,12 @@ export default function ImpostazioniPage() {
           </details>
         </Card>
 
-        <button className={btnPrimary} onClick={save}>{saved ? "Salvato ✓" : "Salva impostazioni"}</button>
+        <div className="flex justify-end">
+          <button className={btnPrimary} onClick={save}>
+            {saved ? <Check size={16} /> : null}
+            {saved ? "Salvato" : "Salva impostazioni"}
+          </button>
+        </div>
       </div>
     </>
   );

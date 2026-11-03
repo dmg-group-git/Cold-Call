@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { listAudioInputs, useRecorder } from "@/components/useRecorder";
 import { LevelMeter } from "@/components/LevelMeter";
-import { Card, PageTitle, btnPrimary, btnRed, btnSecondary, input, label } from "@/components/ui";
+import { Mic, Square } from "lucide-react";
+import { Card, PageTitle, btnPrimary, btnRed, btnSecondary, input, label, link } from "@/components/ui";
 import { formatDuration } from "@/lib/utils";
 
 export default function TestAudioPage() {
@@ -106,13 +107,13 @@ export default function TestAudioPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <span className="text-2xl font-semibold tabular-nums">{formatDuration(rec.seconds)}</span>
-              <button className={btnRed} onClick={stop}>⏹ Ferma</button>
+              <button className={btnRed} onClick={stop}><Square size={14} /> Ferma</button>
             </div>
             <LevelMeter level={rec.level} />
             <p className="text-xs text-slate-500">La barra verde deve muoversi sia quando parli tu sia quando parla l&apos;altra persona.</p>
           </div>
         ) : (
-          <button className={btnPrimary} onClick={start}>🎙️ Avvia registrazione</button>
+          <button className={btnPrimary} onClick={start}><Mic size={16} /> Avvia registrazione</button>
         )}
 
         {audioUrl && (
@@ -121,7 +122,7 @@ export default function TestAudioPage() {
             <button className={btnSecondary} onClick={transcribe} disabled={busy}>{busy ? "Trascrivo…" : "Trascrivi"}</button>
           </div>
         )}
-        {transcript && <pre className="whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-sm">{transcript}</pre>}
+        {transcript && <pre className="whitespace-pre-wrap rounded-xl bg-slate-50 p-4 font-sans text-sm">{transcript}</pre>}
         {error && <p className="text-sm text-slate-700">{error}</p>}
       </Card>
 
@@ -129,7 +130,7 @@ export default function TestAudioPage() {
         <h2 id="blackhole" className="text-base font-semibold text-slate-900">Solo se la qualità non basta: BlackHole</h2>
         <p>BlackHole è un programma gratuito che permette di registrare l&apos;audio della chiamata in modo pulito, anche con le cuffie. Si fa una volta sola, circa 15 minuti.</p>
         <ol className="list-decimal space-y-2 pl-5">
-          <li>Scarica e installa <b>BlackHole 2ch</b> da <a className="text-blue-600 underline" href="https://existential.audio/blackhole/" target="_blank">existential.audio/blackhole</a> (ti chiede la tua email, è gratis). Riavvia il Mac.</li>
+          <li>Scarica e installa <b>BlackHole 2ch</b> da <a className={link} href="https://existential.audio/blackhole/" target="_blank">existential.audio/blackhole</a> (ti chiede la tua email, è gratis). Riavvia il Mac.</li>
           <li>Apri <b>Configurazione MIDI Audio</b> (cercalo con Spotlight, ⌘+Spazio).</li>
           <li>In basso a sinistra premi <b>+</b> → <b>Crea dispositivo a uscita multipla</b>. Spunta le tue cuffie (o &quot;Altoparlanti MacBook&quot;) <b>e</b> &quot;BlackHole 2ch&quot;. Mettilo come uscita del Mac (tasto destro → &quot;Usa questo dispositivo per l&apos;uscita audio&quot;).</li>
           <li>Premi di nuovo <b>+</b> → <b>Crea dispositivo aggregato</b>. Spunta il <b>microfono</b> (es. &quot;Microfono MacBook&quot;) <b>e</b> &quot;BlackHole 2ch&quot;. Rinominalo &quot;Registrazione chiamate&quot;.</li>

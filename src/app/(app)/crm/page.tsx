@@ -1,14 +1,30 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, LeadStatus } from "@/lib/types";
 import { STATUSES } from "@/lib/types";
 import { normalizePhone, formatDateTime } from "@/lib/utils";
-import { Card, Modal, PageTitle, StatusBadge, btnPrimary, btnSecondary, input, label } from "@/components/ui";
+import {
+  Alert,
+  Avatar,
+  Card,
+  EmptyState,
+  Loading,
+  Modal,
+  PageTitle,
+  StatusBadge,
+  btnPrimary,
+  btnSecondary,
+  input,
+  label,
+} from "@/components/ui";
 
 export default function CrmPage() {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<LeadStatus | "">("");
@@ -17,68 +33,139 @@ export default function CrmPage() {
 
   async function load() {
     setLoading(true);
-    let query = supabase.from("leads").select("*").order("updated_at", { ascending: false }).limit(1000);
-    if (status) query = query.eq("status", status);
-    const { data } = await query;
+    const { data } = await supabase.from("leads").select("*").order("updated_at", { ascending: false }).limit(1000);
     setLeads((data as Lead[]) ?? []);
     setLoading(false);
   }
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, []);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const l of leads) c[l.status] = (c[l.status] ?? 0) + 1;
+    return c;
+  }, [leads]);
 
   const filtered = leads.filter((l) => {
+    if (status && l.status !== status) return false;
     if (!q.trim()) return true;
     const s = q.toLowerCase();
     return [l.name, l.city, l.phone, l.contact_person, l.email].some((v) => v?.toLowerCase().includes(s));
   });
 
+  const pill = (active: boolean) =>
+    `flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition ${
+      active ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+    }`;
+
   return (
     <>
-      <div className="flex items-start justify-between">
-        <PageTitle sub={`${filtered.length} lead`}>CRM</PageTitle>
-        <button className={btnPrimary} onClick={() => setAddOpen(true)}>+ Nuovo lead</button>
+      <PageTitle
+        sub="Tutti i tuoi contatti, con stato e storico."
+        actions={
+          <button className={btnPrimary} onClick={() => setAddOpen(true)}>
+            <Plus size={16} /> Nuovo lead
+          </button>
+        }
+      >
+        CRM
+      </PageTitle>
+
+      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+        <button className={pill(status === "")} onClick={() => setStatus("")}>
+          Tutti <span className="opacity-60">{leads.length}</span>
+        </button>
+        {STATUSES.map((s) => (
+          <button key={s.value} className={pill(status === s.value)} onClick={() => setStatus(s.value)}>
+            {s.label} <span className="opacity-60">{counts[s.value] ?? 0}</span>
+          </button>
+        ))}
       </div>
-      <div className="mb-4 flex flex-wrap gap-2">
-        <input className={`${input} max-w-xs`} placeholder="Cerca nome, città, telefono…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className={`${input} max-w-[200px]`} value={status} onChange={(e) => setStatus(e.target.value as LeadStatus | "")}>
-          <option value="">Tutti gli stati</option>
-          {STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-      </div>
-      <Card className="overflow-x-auto p-0">
+
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-slate-100 p-3">
+          <div className="relative max-w-sm">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              className={`${input} pl-9`}
+              placeholder="Cerca nome, città, telefono…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+        </div>
         {loading ? (
-          <p className="p-5 text-slate-500">Carico…</p>
+          <div className="px-5">
+            <Loading />
+          </div>
         ) : !filtered.length ? (
-          <p className="p-5 text-slate-500">Nessun lead.</p>
+          <EmptyState
+            icon={Users}
+            title={leads.length ? "Nessun lead trovato" : "Ancora nessun lead"}
+            action={
+              !leads.length && (
+                <Link className={btnPrimary} href="/ricerca">
+                  <Search size={16} /> Cerca lead su Google
+                </Link>
+              )
+            }
+          >
+            {leads.length ? "Prova a cambiare filtro o ricerca." : "Aggiungili dalla Ricerca lead o a mano con \"Nuovo lead\"."}
+          </EmptyState>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
-              <tr>
-                <th className="p-3">Struttura</th>
-                <th className="p-3">Città</th>
-                <th className="p-3">Telefono</th>
-                <th className="p-3">Stato</th>
-                <th className="p-3">Aggiornato</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((l) => (
-                <tr key={l.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="p-3"><Link className="font-medium text-slate-900 hover:underline" href={`/crm/${l.id}`}>{l.name}</Link></td>
-                  <td className="p-3 text-slate-600">{l.city}</td>
-                  <td className="p-3 text-slate-600">{l.phone}</td>
-                  <td className="p-3"><StatusBadge status={l.status} /></td>
-                  <td className="p-3 text-slate-500">{formatDateTime(l.updated_at)}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Struttura</th>
+                  <th className="hidden px-4 py-3 md:table-cell">Telefono</th>
+                  <th className="px-4 py-3">Stato</th>
+                  <th className="hidden px-4 py-3 lg:table-cell">Prossima azione</th>
+                  <th className="hidden px-4 py-3 sm:table-cell">Aggiornato</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((l) => (
+                  <tr
+                    key={l.id}
+                    className="cursor-pointer transition hover:bg-brand-50/40"
+                    onClick={() => router.push(`/crm/${l.id}`)}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={l.name} size="sm" />
+                        <div className="min-w-0">
+                          <Link
+                            className="block truncate font-medium text-slate-900 hover:text-brand-700"
+                            href={`/crm/${l.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {l.name}
+                          </Link>
+                          <div className="truncate text-xs text-slate-500">
+                            {[l.city, l.contact_person].filter(Boolean).join(" · ") || "—"}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="hidden px-4 py-3 text-slate-600 tabular-nums md:table-cell">{l.phone ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={l.status} />
+                    </td>
+                    <td className="hidden px-4 py-3 text-slate-600 lg:table-cell">
+                      {l.next_action_at ? formatDateTime(l.next_action_at) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="hidden px-4 py-3 text-slate-500 sm:table-cell">{formatDateTime(l.updated_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
+      <p className="mt-3 text-xs text-slate-400">{filtered.length} lead mostrati</p>
       <AddLead open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
     </>
   );
@@ -118,8 +205,8 @@ function AddLead({ open, onClose, onAdded }: { open: boolean; onClose: () => voi
         {field("website", "Sito")}
         {field("email", "Email")}
       </div>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      <div className="mt-4 flex justify-end gap-2">
+      {error && <Alert tone="error" className="mt-4">{error}</Alert>}
+      <div className="mt-6 flex justify-end gap-2">
         <button className={btnSecondary} onClick={onClose}>Annulla</button>
         <button className={btnPrimary} onClick={save} disabled={!f.name.trim()}>Salva</button>
       </div>
