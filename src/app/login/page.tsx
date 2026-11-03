@@ -24,18 +24,17 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 p-4">
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-brand-600/30 blur-3xl" />
+    <main className="relative flex min-h-screen items-center justify-center p-4">
       <form
         onSubmit={submit}
-        className="animate-pop-in relative w-full max-w-sm space-y-5 rounded-2xl bg-white p-8 shadow-2xl"
+        className="animate-pop-in relative w-full max-w-sm space-y-5 rounded-[28px] bg-white/80 p-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)] ring-1 ring-black/[0.04] backdrop-blur-xl"
       >
         <div className="flex flex-col items-center text-center">
-          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-600/30">
-            <Phone size={22} strokeWidth={2.5} />
+          <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-[18px] bg-gradient-to-b from-[#3ddc6a] to-[#28b44c] text-white shadow-lg shadow-green-500/30">
+            <Phone size={30} strokeWidth={2} fill="currentColor" />
           </span>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">Cold Call Dashboard</h1>
-          <p className="mt-1 text-sm text-slate-500">Accedi per iniziare a chiamare</p>
+          <h1 className="text-[28px] font-bold tracking-tight text-[#1d1d1f]">Cold Call</h1>
+          <p className="mt-1 text-[15px] text-slate-500">Accedi per iniziare a chiamare</p>
         </div>
         <div>
           <label className={label}>Email</label>

@@ -61,7 +61,7 @@ export default function MaterialiPage() {
         Materiali
       </PageTitle>
       <Card className="space-y-4">
-        <CardTitle icon={Plus}>Aggiungi materiale</CardTitle>
+        <CardTitle icon={Plus} tone="pink">Aggiungi materiale</CardTitle>
         <div className="grid gap-4 md:grid-cols-3">
           <div>
             <span className={label}>Tipo</span>
@@ -106,7 +106,7 @@ export default function MaterialiPage() {
             Aggiungi video, PDF o link: potrai allegarli ai messaggi WhatsApp.
           </EmptyState>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-black/[0.06]">
             {materials.map((m) => {
               const k = KIND[m.kind] ?? KIND.link;
               return (

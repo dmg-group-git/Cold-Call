@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, Manrope } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", weight: ["600", "700", "800"] });
 
 export const metadata: Metadata = {
   title: "Cold Call Dashboard",
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it">
-      <body className={`${inter.variable} ${manrope.variable} antialiased`}>{children}</body>
+      <body className={`${inter.variable} antialiased`}>{children}</body>
     </html>
   );
 }

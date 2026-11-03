@@ -8,13 +8,13 @@ export type LeadStatus =
   | "perso";
 
 export const STATUSES: { value: LeadStatus; label: string; color: string }[] = [
-  { value: "nuovo", label: "Nuovo", color: "bg-slate-600 text-white" },
-  { value: "contattato", label: "Contattato", color: "bg-sky-600 text-white" },
-  { value: "ha_risposto", label: "Ha risposto", color: "bg-indigo-600 text-white" },
-  { value: "demo", label: "Demo", color: "bg-amber-500 text-white" },
-  { value: "in_prova", label: "In prova", color: "bg-violet-600 text-white" },
-  { value: "cliente", label: "Cliente", color: "bg-emerald-600 text-white" },
-  { value: "perso", label: "Perso", color: "bg-rose-600 text-white" },
+  { value: "nuovo", label: "Nuovo", color: "bg-slate-500/10 text-slate-600" },
+  { value: "contattato", label: "Contattato", color: "bg-sky-500/10 text-sky-700" },
+  { value: "ha_risposto", label: "Ha risposto", color: "bg-blue-500/10 text-blue-700" },
+  { value: "demo", label: "Demo", color: "bg-orange-500/10 text-orange-700" },
+  { value: "in_prova", label: "In prova", color: "bg-purple-500/10 text-purple-700" },
+  { value: "cliente", label: "Cliente", color: "bg-green-500/10 text-green-700" },
+  { value: "perso", label: "Perso", color: "bg-red-500/10 text-red-700" },
 ];
 
 export type Outcome = "non_risponde" | "da_richiamare" | "interessato" | "non_interessato";

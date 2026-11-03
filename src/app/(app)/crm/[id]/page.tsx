@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Interaction, Lead, LeadStatus } from "@/lib/types";
 import { STATUSES } from "@/lib/types";
-import { formatDateTime, normalizePhone, telLink } from "@/lib/utils";
+import { formatDateTime, formatPhone, normalizePhone, telLink } from "@/lib/utils";
 import { useAppData } from "@/components/useAppData";
 import { Timeline } from "@/components/Timeline";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
@@ -30,6 +30,8 @@ import {
   Avatar,
   Card,
   CardTitle,
+  CollapsibleCard,
+  usePersistentOpen,
   Loading,
   Modal,
   StatusBadge,
@@ -56,6 +58,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
   const [ev, setEv] = useState<null | "videocall" | "richiamata">(null);
   const [delOpen, setDelOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = usePersistentOpen("lead-form", true);
 
   const load = useCallback(async () => {
     const { data: l } = await supabase.from("leads").select("*").eq("id", id).single();
@@ -158,7 +161,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
         <div className="flex min-w-0 items-center gap-4">
           <Avatar name={lead.name} size="lg" />
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">{lead.name}</h1>
+            <h1 className="truncate text-[28px] font-bold tracking-tight text-[#1d1d1f]">{lead.name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
               <StatusBadge status={lead.status} />
               {lead.city && <span>{[lead.city, lead.province].filter(Boolean).join(" · ")}</span>}
@@ -192,8 +195,16 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
       {msg && <Alert className="mb-4">{msg}</Alert>}
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="space-y-3 self-start lg:col-span-2">
-          <CardTitle icon={UserRound}>Dati del lead</CardTitle>
+        <CollapsibleCard
+          className="self-start lg:col-span-2"
+          icon={UserRound}
+          tone="blue"
+          title="Dati del lead"
+          summary={[formatPhone(lead.phone), lead.contact_person, lead.email].filter(Boolean).join(" · ") || "Tocca per modificare"}
+          open={formOpen}
+          onToggle={setFormOpen}
+        >
+          <div className="space-y-3">
           <div>
             <span className={label}>Stato</span>
             <select className={input} value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value as LeadStatus })}>
@@ -232,7 +243,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-4 border-t border-slate-100 pt-4 text-xs font-medium">
+          <div className="flex flex-wrap gap-4 border-t border-black/[0.06] pt-4 text-xs font-medium">
             <button className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900" onClick={toggleDnc}>
               <Ban size={13} /> {isDnc ? "Togli da \"non contattare\"" : "Aggiungi a \"non contattare\""}
             </button>
@@ -240,10 +251,11 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
               <Trash2 size={13} /> Elimina lead
             </button>
           </div>
-        </Card>
+          </div>
+        </CollapsibleCard>
 
         <Card className="lg:col-span-3">
-          <CardTitle icon={History} sub="Chiamate, messaggi, appuntamenti e note">Storico</CardTitle>
+          <CardTitle icon={History} tone="indigo" sub="Tocca una riga per i dettagli">Storico</CardTitle>
           <div className="mb-4 flex gap-2">
             <input className={input} placeholder="Aggiungi una nota…" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} />
             <button className={btnSecondary} onClick={addNote}>Aggiungi</button>
