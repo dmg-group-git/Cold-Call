@@ -131,6 +131,26 @@ export default function ImpostazioniPage() {
           )}
         </Card>
 
+        <Card>
+          <details>
+            <summary className="cursor-pointer font-semibold">Il Mac non chiama? Attiva le chiamate da iPhone</summary>
+            <div className="mt-3 space-y-3 text-sm text-slate-700">
+              <p>Se compare &quot;iPhone non è configurato per effettuare chiamate tramite il Mac&quot;:</p>
+              <ol className="list-decimal space-y-1 pl-5">
+                <li>
+                  Su <b>iPhone</b>: Impostazioni → App → Telefono → <b>Chiamate su altri dispositivi</b>. Attivalo e accendi
+                  l&apos;interruttore del tuo Mac.
+                </li>
+                <li>
+                  Sul <b>Mac</b>: apri l&apos;app FaceTime (o Telefono) → Impostazioni → spunta <b>Chiamate da iPhone</b>.
+                </li>
+                <li>iPhone e Mac devono avere lo stesso Apple ID, con Wi-Fi e Bluetooth accesi e vicini.</li>
+              </ol>
+              <p className="text-slate-500">Se ancora non va: spegni e riaccendi Wi-Fi su entrambi, poi riprova.</p>
+            </div>
+          </details>
+        </Card>
+
         <button className={btnPrimary} onClick={save}>{saved ? "Salvato ✓" : "Salva impostazioni"}</button>
       </div>
     </>
