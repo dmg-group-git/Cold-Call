@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  CalendarDays,
   ChevronRight,
   Ellipsis,
   FileText,
@@ -26,6 +27,7 @@ const GROUPS: { title: string; links: NavLink[] }[] = [
     links: [
       { href: "/chiamate", label: "Chiamate", icon: Phone, tone: "green" },
       { href: "/crm", label: "CRM", icon: Users, tone: "blue" },
+      { href: "/calendario", label: "Calendario", icon: CalendarDays, tone: "red" },
       { href: "/ricerca", label: "Ricerca lead", short: "Ricerca", icon: Search, tone: "purple" },
     ],
   },
@@ -46,7 +48,7 @@ const GROUPS: { title: string; links: NavLink[] }[] = [
 ];
 const ALL = GROUPS.flatMap((g) => g.links);
 // barra in basso su iPhone: 4 voci principali + "Altro"
-const TABS = ALL.filter((l) => ["/chiamate", "/crm", "/ricerca", "/script"].includes(l.href));
+const TABS = ALL.filter((l) => ["/chiamate", "/crm", "/calendario", "/ricerca"].includes(l.href));
 const MORE = ALL.filter((l) => !TABS.includes(l));
 
 function Logo() {
