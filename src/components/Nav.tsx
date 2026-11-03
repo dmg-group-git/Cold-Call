@@ -15,27 +15,28 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-const GROUPS: { title: string; links: { href: string; label: string; icon: LucideIcon }[] }[] = [
+type NavLink = { href: string; label: string; icon: LucideIcon; color: string; hover: string };
+const GROUPS: { title: string; links: NavLink[] }[] = [
   {
     title: "Lavoro",
     links: [
-      { href: "/chiamate", label: "Chiamate", icon: Phone },
-      { href: "/crm", label: "CRM", icon: Users },
-      { href: "/ricerca", label: "Ricerca lead", icon: Search },
+      { href: "/chiamate", label: "Chiamate", icon: Phone, color: "text-emerald-400 bg-emerald-400/15", hover: "group-hover:text-emerald-400" },
+      { href: "/crm", label: "CRM", icon: Users, color: "text-sky-400 bg-sky-400/15", hover: "group-hover:text-sky-400" },
+      { href: "/ricerca", label: "Ricerca lead", icon: Search, color: "text-violet-400 bg-violet-400/15", hover: "group-hover:text-violet-400" },
     ],
   },
   {
     title: "Contenuti",
     links: [
-      { href: "/script", label: "Script", icon: FileText },
-      { href: "/materiali", label: "Materiali", icon: Paperclip },
+      { href: "/script", label: "Script", icon: FileText, color: "text-amber-400 bg-amber-400/15", hover: "group-hover:text-amber-400" },
+      { href: "/materiali", label: "Materiali", icon: Paperclip, color: "text-pink-400 bg-pink-400/15", hover: "group-hover:text-pink-400" },
     ],
   },
   {
     title: "Configurazione",
     links: [
-      { href: "/impostazioni", label: "Impostazioni", icon: Settings },
-      { href: "/test-audio", label: "Prova audio", icon: Mic },
+      { href: "/impostazioni", label: "Impostazioni", icon: Settings, color: "text-slate-300 bg-slate-400/15", hover: "group-hover:text-slate-200" },
+      { href: "/test-audio", label: "Prova audio", icon: Mic, color: "text-rose-400 bg-rose-400/15", hover: "group-hover:text-rose-400" },
     ],
   },
 ];
@@ -46,7 +47,7 @@ function Logo() {
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-md shadow-brand-900/30">
         <Phone size={16} strokeWidth={2.5} />
       </span>
-      <span className="text-[15px] font-semibold tracking-tight">Cold Call</span>
+      <span className="font-display text-[15px] font-bold tracking-tight">Cold Call</span>
     </Link>
   );
 }
@@ -97,20 +98,23 @@ export function Nav() {
             <div key={g.title}>
               <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{g.title}</div>
               <ul className="space-y-0.5">
-                {g.links.map(({ href, label, icon: Icon }) => (
+                {g.links.map(({ href, label, icon: Icon, color, hover }) => (
                   <li key={href}>
                     <Link
                       href={href}
-                      className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                      className={`group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-all duration-150 ${
                         active(href)
-                          ? "bg-white/10 text-white"
-                          : "text-slate-400 hover:bg-white/5 hover:text-white"
+                          ? "bg-white/10 text-white shadow-inner shadow-black/20"
+                          : "text-slate-400 hover:translate-x-0.5 hover:bg-white/5 hover:text-white"
                       }`}
                     >
-                      <Icon
-                        size={17}
-                        className={active(href) ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"}
-                      />
+                      <span
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition ${
+                          active(href) ? color : `bg-white/5 text-slate-500 ${hover}`
+                        }`}
+                      >
+                        <Icon size={16} />
+                      </span>
                       {label}
                     </Link>
                   </li>

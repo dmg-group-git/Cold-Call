@@ -6,11 +6,13 @@ import { STATUSES, type LeadStatus } from "@/lib/types";
 export function Modal({
   open,
   title,
+  icon: Icon,
   onClose,
   children,
 }: {
   open: boolean;
   title: string;
+  icon?: LucideIcon;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -25,7 +27,7 @@ export function Modal({
   if (!open) return null;
   return (
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="animate-fade-in fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-md sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
@@ -33,7 +35,14 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <div className="flex items-center gap-3">
+            {Icon && (
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                <Icon size={20} />
+              </span>
+            )}
+            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          </div>
           <button
             onClick={onClose}
             className="-m-1 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
@@ -48,23 +57,13 @@ export function Modal({
   );
 }
 
-const DOT: Record<LeadStatus, string> = {
-  nuovo: "bg-slate-400",
-  contattato: "bg-sky-500",
-  ha_risposto: "bg-brand-500",
-  demo: "bg-amber-500",
-  in_prova: "bg-violet-500",
-  cliente: "bg-emerald-500",
-  perso: "bg-rose-500",
-};
-
 export function StatusBadge({ status }: { status: LeadStatus }) {
   const s = STATUSES.find((x) => x.value === status);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${s?.color ?? ""}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold shadow-sm transition-colors ${s?.color ?? "bg-slate-600 text-white"}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${DOT[status] ?? "bg-slate-400"}`} />
+      <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
       {s?.label ?? status}
     </span>
   );
@@ -73,7 +72,7 @@ export function StatusBadge({ status }: { status: LeadStatus }) {
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 ${
+      className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/60 transition-shadow ${
         /(^|\s)p-0(\s|$)/.test(className) ? "" : "p-5"
       } ${className}`}
     >
@@ -183,26 +182,30 @@ export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md"
       .map((w) => w[0]?.toUpperCase())
       .join("") || "?";
   const palette = [
-    "bg-brand-100 text-brand-700",
-    "bg-sky-100 text-sky-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-amber-100 text-amber-800",
-    "bg-rose-100 text-rose-700",
-    "bg-violet-100 text-violet-700",
+    "from-brand-500 to-violet-600",
+    "from-sky-500 to-brand-600",
+    "from-emerald-500 to-teal-600",
+    "from-amber-400 to-orange-500",
+    "from-rose-500 to-pink-600",
+    "from-violet-500 to-fuchsia-600",
   ];
   const color = palette[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % palette.length];
   const sz = { sm: "h-8 w-8 text-xs", md: "h-10 w-10 text-sm", lg: "h-14 w-14 text-lg" }[size];
   return (
-    <span className={`flex shrink-0 items-center justify-center rounded-xl font-semibold ${color} ${sz}`}>{initials}</span>
+    <span
+      className={`font-display flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br font-bold text-white shadow-md shadow-slate-900/10 ring-2 ring-white ${color} ${sz}`}
+    >
+      {initials}
+    </span>
   );
 }
 
 export const btn =
-  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100";
-export const btnPrimary = `${btn} bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700`;
-export const btnSecondary = `${btn} border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300`;
-export const btnGreen = `${btn} bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700`;
-export const btnRed = `${btn} bg-rose-600 text-white shadow-sm shadow-rose-600/20 hover:bg-rose-700`;
+  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-150 active:translate-y-px active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 disabled:active:translate-y-0";
+export const btnPrimary = `${btn} bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-md shadow-brand-600/25 hover:from-brand-600 hover:to-brand-700 hover:shadow-lg hover:shadow-brand-600/30`;
+export const btnSecondary = `${btn} border border-slate-200 bg-white text-slate-700 shadow-sm hover:-translate-y-px hover:border-slate-300 hover:bg-slate-50 hover:shadow`;
+export const btnGreen = `${btn} bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-600/25 hover:from-emerald-600 hover:to-emerald-700 hover:shadow-lg hover:shadow-emerald-600/30`;
+export const btnRed = `${btn} bg-gradient-to-b from-rose-500 to-rose-600 text-white shadow-md shadow-rose-600/25 hover:from-rose-600 hover:to-rose-700 hover:shadow-lg hover:shadow-rose-600/30`;
 export const btnGhost = `${btn} text-slate-600 hover:bg-slate-100 hover:text-slate-900`;
 export const btnLg = "px-5 py-3 text-base";
 export const input =

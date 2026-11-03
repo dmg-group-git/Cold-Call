@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Analysis, Lead, Outcome } from "@/lib/types";
 import { OUTCOMES } from "@/lib/types";
-import { fillTemplate, formatDateTime, formatDuration, openTel, prettyLocal, telLink } from "@/lib/utils";
+import { fillTemplate, formatDateTime, formatDuration, formatPhone, openTel, prettyLocal, telLink } from "@/lib/utils";
 import { useAppData } from "@/components/useAppData";
 import { useRecorder } from "@/components/useRecorder";
 import { LevelMeter } from "@/components/LevelMeter";
@@ -375,30 +375,34 @@ export default function ChiamatePage() {
         {/* SCHEDA LEAD */}
         <div className="space-y-6 lg:col-span-2">
           <Card className="overflow-hidden p-0">
-            <div className="p-5">
-              <div className="flex items-start gap-3">
+            {/* intestazione "a eroe" */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-brand-900 p-5 text-white">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-500/30 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-violet-500/20 blur-3xl" />
+              <div className="relative flex items-start gap-3">
                 <Avatar name={lead.name} size="lg" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="truncate text-lg font-semibold text-slate-900">{lead.name}</h2>
+                  <h2 className="font-display truncate text-xl font-bold leading-tight">{lead.name}</h2>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-300">
                     <StatusBadge status={lead.status} />
+                    {(lead.city || lead.province) && (
+                      <span className="flex items-center gap-1">
+                        <MapPin size={13} /> {[lead.city, lead.province].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
                   </div>
-                  {(lead.city || lead.province) && (
-                    <p className="mt-0.5 flex items-center gap-1 text-sm text-slate-500">
-                      <MapPin size={13} /> {[lead.city, lead.province].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
                 </div>
               </div>
-
               <a
                 href={telLink(lead.phone!)}
-                className="mt-4 flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums hover:text-brand-700"
+                className="relative mt-5 block font-mono text-[28px] font-semibold tracking-wide text-white tabular-nums transition hover:text-brand-200"
               >
-                <Phone size={20} className="text-slate-400" /> {lead.phone}
+                {formatPhone(lead.phone)}
               </a>
+            </div>
 
-              <dl className="mt-4 grid gap-2 text-sm">
+            <div className="p-5">
+              <dl className="grid gap-2 text-sm">
                 {lead.contact_person && <Info icon={User} label="Referente">{lead.contact_person}</Info>}
                 {lead.website && (
                   <Info icon={Globe} label="Sito">
@@ -453,16 +457,30 @@ export default function ChiamatePage() {
 
               {phase === "calling" && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-4xl font-semibold tracking-tight tabular-nums text-slate-900">
-                      {formatDuration(callSeconds)}
-                    </span>
+                  <div className="flex flex-col items-center py-2">
+                    <div className="relative flex h-36 w-36 items-center justify-center">
+                      {isRecording && (
+                        <>
+                          <span className="animate-ring absolute inset-0 rounded-full border-2 border-rose-500" />
+                          <span className="animate-ring absolute inset-0 rounded-full border-2 border-rose-500 [animation-delay:0.8s]" />
+                        </>
+                      )}
+                      <span
+                        className={`relative flex h-32 w-32 items-center justify-center rounded-full border-4 bg-white shadow-lg ${
+                          isRecording ? "border-rose-500 shadow-rose-500/20" : "border-emerald-500 shadow-emerald-500/20"
+                        }`}
+                      >
+                        <span className="font-display text-3xl font-bold tracking-tight tabular-nums text-slate-900">
+                          {formatDuration(callSeconds)}
+                        </span>
+                      </span>
+                    </div>
                     {isRecording ? (
-                      <span className="flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-rose-600" /> Registrazione
+                      <span className="mt-2 flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> REC
                       </span>
                     ) : (
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500">Non registrata</span>
+                      <span className="mt-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">Non registrata</span>
                     )}
                   </div>
                   {isRecording && (
@@ -517,7 +535,7 @@ export default function ChiamatePage() {
           {phase !== "result" ? (
             <Card className="lg:sticky lg:top-6">
               <CardTitle icon={FileText}>{callScript?.title ?? "Script"}</CardTitle>
-              <div className="whitespace-pre-wrap text-[15px] leading-7 text-slate-800">
+              <div className="paper whitespace-pre-wrap rounded-xl border border-slate-200 py-4 pl-7 pr-5 text-[16px] leading-8 text-slate-800 shadow-inner shadow-slate-200/40">
                 {callScript ? (
                   fillTemplate(callScript.body, lead, settings)
                 ) : (
@@ -578,8 +596,8 @@ export default function ChiamatePage() {
                       <button
                         key={o.value}
                         onClick={() => setOutcome(o.value)}
-                        className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-center text-sm font-medium transition ${
-                          sel ? st.on : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-center text-sm font-semibold transition-all duration-150 ${
+                          sel ? `${st.on} scale-[1.03]` : "border-slate-200 bg-white text-slate-600 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow"
                         }`}
                       >
                         <st.icon size={20} />
@@ -681,11 +699,11 @@ export default function ChiamatePage() {
           notes={analysis?.riassunto}
         />
       )}
-      <Modal open={dncOpen} onClose={() => setDncOpen(false)} title="Aggiungiamo a &quot;non contattare&quot;?">
+      <Modal open={dncOpen} onClose={() => setDncOpen(false)} icon={Ban} title="Aggiungiamo a &quot;non contattare&quot;?">
         <p className="text-sm text-slate-600">
           {lead.name} ({lead.phone}) non verrà più proposto in ricerche e chiamate.
         </p>
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button className={btnSecondary} onClick={() => setDncOpen(false)}>
             Annulla
           </button>
@@ -699,10 +717,10 @@ export default function ChiamatePage() {
 }
 
 const OUTCOME_STYLE: Record<Outcome, { icon: LucideIcon; on: string }> = {
-  non_risponde: { icon: PhoneMissed, on: "border-slate-500 bg-slate-50 text-slate-900" },
-  da_richiamare: { icon: Clock, on: "border-amber-500 bg-amber-50 text-amber-900" },
-  interessato: { icon: ThumbsUp, on: "border-emerald-500 bg-emerald-50 text-emerald-900" },
-  non_interessato: { icon: ThumbsDown, on: "border-rose-500 bg-rose-50 text-rose-900" },
+  non_risponde: { icon: PhoneMissed, on: "border-slate-700 bg-slate-700 text-white shadow-lg shadow-slate-700/30" },
+  da_richiamare: { icon: Clock, on: "border-amber-500 bg-amber-500 text-white shadow-lg shadow-amber-500/30" },
+  interessato: { icon: ThumbsUp, on: "border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-600/30" },
+  non_interessato: { icon: ThumbsDown, on: "border-rose-600 bg-rose-600 text-white shadow-lg shadow-rose-600/30" },
 };
 
 function Stepper({ index }: { index: number }) {

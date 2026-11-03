@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, Material, Script, Settings } from "@/lib/types";
 import { fillTemplate, materialsText, waLink, withMaterials } from "@/lib/utils";
+import { MessageCircle } from "lucide-react";
+import { WaPreview } from "./WaPreview";
 import { Modal, btnGreen, btnSecondary, input, label } from "./ui";
 
 /**
@@ -68,7 +70,7 @@ export function WhatsAppDialog({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={title ?? "Inviamo il WhatsApp?"}>
+    <Modal icon={MessageCircle} open={open} onClose={onClose} title={title ?? "Inviamo il WhatsApp?"}>
       {!lead.phone ? (
         <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">Questo lead non ha un numero di telefono.</p>
       ) : (
@@ -102,13 +104,17 @@ export function WhatsAppDialog({
           )}
           <div>
             <span className={label}>Testo (puoi modificarlo)</span>
-            <textarea className={`${input} h-48`} value={text} onChange={(e) => setText(e.target.value)} />
+            <textarea className={`${input} h-40`} value={text} onChange={(e) => setText(e.target.value)} />
+            <div className="mt-3">
+              <span className={label}>Anteprima</span>
+              <WaPreview text={text} className="h-48" />
+            </div>
           </div>
           <p className="text-xs text-slate-500">
             Si aprirà WhatsApp con il messaggio pronto per {lead.phone}: premi Invia lì. Non inviare troppi messaggi a
             numeri sconosciuti, WhatsApp potrebbe bloccare il numero.
           </p>
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
             <button className={btnSecondary} onClick={onClose}>
               Annulla
             </button>

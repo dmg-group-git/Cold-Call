@@ -12,15 +12,44 @@
   --color-brand-800: #3730a3;
   --color-brand-900: #312e81;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --animate-ring: ring 1.6s ease-out infinite;
+  --animate-shimmer: shimmer 1.4s linear infinite;
 }
 
 :root {
   color-scheme: light;
 }
 body {
-  background: #f6f7fb;
+  background: linear-gradient(180deg, #eef0f7 0%, #f7f8fc 320px, #f7f8fc 100%) fixed;
   color: #0f172a;
   font-feature-settings: "cv11", "ss01";
+}
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+@keyframes ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.paper {
+  background:
+    linear-gradient(90deg, var(--color-brand-500) 0 4px, transparent 4px),
+    repeating-linear-gradient(180deg, transparent 0 31px, #eef0f5 31px 32px),
+    #fff;
+}
+.wa-bg {
+  background-color: #e5ddd5;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,0.5) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 60% 70%, rgba(255,255,255,0.4) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 85% 30%, rgba(0,0,0,0.04) 0 2px, transparent 3px);
+  background-size: 48px 48px, 64px 64px, 56px 56px;
 }
 
 @keyframes fade-in {
@@ -33,6 +62,10 @@ body {
 }
 .animate-fade-in { animation: fade-in 0.15s ease-out; }
 .animate-pop-in { animation: pop-in 0.18s ease-out; }
+.animate-page { animation: pop-in 0.28s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-pop-in, .animate-page { animation: none; }
+}
 
 /* checkbox e radio con il colore del brand */
 input[type="checkbox"], input[type="radio"] {

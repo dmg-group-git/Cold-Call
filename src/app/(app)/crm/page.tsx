@@ -6,7 +6,7 @@ import { Plus, Search, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, LeadStatus } from "@/lib/types";
 import { STATUSES } from "@/lib/types";
-import { normalizePhone, formatDateTime } from "@/lib/utils";
+import { normalizePhone, formatDateTime, formatPhone } from "@/lib/utils";
 import {
   Alert,
   Avatar,
@@ -57,7 +57,7 @@ export default function CrmPage() {
 
   const pill = (active: boolean) =>
     `flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition ${
-      active ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+      active ? "bg-slate-900 text-white shadow-md shadow-slate-900/20" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:-translate-y-px hover:bg-slate-50 hover:shadow"
     }`;
 
   return (
@@ -119,22 +119,22 @@ export default function CrmPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Struttura</th>
-                  <th className="hidden px-4 py-3 md:table-cell">Telefono</th>
-                  <th className="px-4 py-3">Stato</th>
-                  <th className="hidden px-4 py-3 lg:table-cell">Prossima azione</th>
-                  <th className="hidden px-4 py-3 sm:table-cell">Aggiornato</th>
+                  <th className="px-5 py-3">Struttura</th>
+                  <th className="hidden px-5 py-3 md:table-cell">Telefono</th>
+                  <th className="px-5 py-3">Stato</th>
+                  <th className="hidden px-5 py-3 lg:table-cell">Prossima azione</th>
+                  <th className="hidden px-5 py-3 sm:table-cell">Aggiornato</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100/80">
                 {filtered.map((l) => (
                   <tr
                     key={l.id}
-                    className="cursor-pointer transition hover:bg-brand-50/40"
+                    className="group cursor-pointer transition-colors hover:bg-brand-50/50"
                     onClick={() => router.push(`/crm/${l.id}`)}
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3.5">
                         <Avatar name={l.name} size="sm" />
                         <div className="min-w-0">
                           <Link
@@ -150,14 +150,14 @@ export default function CrmPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="hidden px-4 py-3 text-slate-600 tabular-nums md:table-cell">{l.phone ?? "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="hidden px-5 py-4 font-mono text-[13px] text-slate-600 tabular-nums md:table-cell">{formatPhone(l.phone) || "—"}</td>
+                    <td className="px-5 py-4">
                       <StatusBadge status={l.status} />
                     </td>
-                    <td className="hidden px-4 py-3 text-slate-600 lg:table-cell">
+                    <td className="hidden px-5 py-4 text-slate-600 lg:table-cell">
                       {l.next_action_at ? formatDateTime(l.next_action_at) : <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="hidden px-4 py-3 text-slate-500 sm:table-cell">{formatDateTime(l.updated_at)}</td>
+                    <td className="hidden px-5 py-4 text-slate-500 sm:table-cell">{formatDateTime(l.updated_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -195,7 +195,7 @@ function AddLead({ open, onClose, onAdded }: { open: boolean; onClose: () => voi
     </div>
   );
   return (
-    <Modal open={open} onClose={onClose} title="Nuovo lead">
+    <Modal open={open} onClose={onClose} icon={Plus} title="Nuovo lead">
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">{field("name", "Nome struttura *")}</div>
         {field("phone", "Telefono")}
@@ -206,7 +206,7 @@ function AddLead({ open, onClose, onAdded }: { open: boolean; onClose: () => voi
         {field("email", "Email")}
       </div>
       {error && <Alert tone="error" className="mt-4">{error}</Alert>}
-      <div className="mt-6 flex justify-end gap-2">
+      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button className={btnSecondary} onClick={onClose}>Annulla</button>
         <button className={btnPrimary} onClick={save} disabled={!f.name.trim()}>Salva</button>
       </div>
