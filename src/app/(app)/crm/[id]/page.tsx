@@ -1,4 +1,5 @@
 "use client";
+import { PhoneKind } from "@/components/PhoneKind";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -161,6 +162,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
               <StatusBadge status={lead.status} />
               {lead.city && <span>{[lead.city, lead.province].filter(Boolean).join(" · ")}</span>}
+              <PhoneKind phone={lead.phone} />
               {lead.rating != null && (
                 <span className="inline-flex items-center gap-1">
                   <Star size={13} className="fill-amber-400 text-amber-400" /> {lead.rating} ({lead.reviews_count})

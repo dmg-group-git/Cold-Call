@@ -166,3 +166,18 @@ where not exists (select 1 from public.scripts where kind = 'wa_answered');
 alter table public.scripts add column if not exists material_ids uuid[] not null default '{}';
 alter table public.materials drop constraint if exists materials_kind_check;
 alter table public.materials add constraint materials_kind_check check (kind in ('pdf','video','link','file'));
+
+-- ---------------------------------------------------------
+-- AGGIORNAMENTO 2026-11-03: ricerche salvate
+-- ---------------------------------------------------------
+create table if not exists public.saved_searches (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name text not null,
+  params jsonb not null default '{}',
+  seen_ids text[] not null default '{}',
+  last_run_at timestamptz
+);
+alter table public.saved_searches enable row level security;
+drop policy if exists "auth_all" on public.saved_searches;
+create policy "auth_all" on public.saved_searches for all to authenticated using (true) with check (true);

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, Material, Script, Settings } from "@/lib/types";
-import { fillTemplate, materialsText, waLink, withMaterials } from "@/lib/utils";
+import { fillTemplate, materialsText, waLink, withMaterials, phoneKind } from "@/lib/utils";
 import { MessageCircle } from "lucide-react";
 import { WaPreview } from "./WaPreview";
 import { Modal, btnGreen, btnSecondary, input, label } from "./ui";
@@ -110,6 +110,11 @@ export function WhatsAppDialog({
               <WaPreview text={text} className="h-48" />
             </div>
           </div>
+          {phoneKind(lead.phone) === "fisso" && (
+            <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+              Attenzione: questo sembra un numero <b>fisso</b>, di solito non ha WhatsApp.
+            </p>
+          )}
           <p className="text-xs text-slate-500">
             Si aprirà WhatsApp con il messaggio pronto per {lead.phone}: premi Invia lì. Non inviare troppi messaggi a
             numeri sconosciuti, WhatsApp potrebbe bloccare il numero.

@@ -10,6 +10,15 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return s;
 }
 
+/** Cellulare o fisso (solo numeri italiani). I cellulari italiani iniziano con 3, i fissi con 0. */
+export function phoneKind(phone: string | null | undefined): "cellulare" | "fisso" | null {
+  if (!phone) return null;
+  const n = phone.replace(/[^\d+]/g, "");
+  if (/^\+393\d{8,9}$/.test(n)) return "cellulare";
+  if (/^\+390\d{5,10}$/.test(n)) return "fisso";
+  return null;
+}
+
 /** Numero per wa.me (solo cifre, con prefisso). */
 export function waNumber(phone: string): string {
   return phone.replace(/\D/g, "");

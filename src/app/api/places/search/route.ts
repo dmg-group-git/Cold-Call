@@ -15,6 +15,7 @@ const FIELDS = [
   "places.userRatingCount",
   "places.businessStatus",
   "places.primaryType",
+  "places.location",
   "nextPageToken",
 ].join(",");
 
@@ -29,6 +30,37 @@ interface GPlace {
   userRatingCount?: number;
   businessStatus?: string;
   primaryType?: string;
+  location?: { latitude: number; longitude: number };
+}
+
+type Center = { lat: number; lng: number };
+
+/** Distanza in km tra due punti. */
+function distanceKm(a: Center, b: Center): number {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
+/** Rettangolo che contiene il cerchio (Google accetta solo rettangoli come limite rigido). */
+function boxAround(c: Center, km: number) {
+  const dLat = km / 111;
+  const dLng = km / (111 * Math.cos((c.lat * Math.PI) / 180));
+  return {
+    rectangle: {
+      low: { latitude: c.lat - dLat, longitude: c.lng - dLng },
+      high: { latitude: c.lat + dLat, longitude: c.lng + dLng },
+    },
+  };
+}
+
+/** Comune dall'indirizzo di Google: "Via Roma 1, 71016 San Severo FG" -> "San Severo". */
+function cityFromAddress(addr: string): string | null {
+  return addr.match(/\d{5}\s+(.+?)\s+[A-Z]{2}(?:,|$)/)?.[1] ?? null;
 }
 
 /**
@@ -46,14 +78,14 @@ const SYNONYMS: { match: RegExp; terms: string[] }[] = [
 ];
 
 /** Divide "B&B, agriturismo" in più ricerche e aggiunge i sinonimi. */
-function expandQuery(q: string): string[] {
+function expandQuery(q: string, synonyms: boolean): string[] {
   const parts = q
     .split(/[,;\n]+/)
     .map((x) => x.trim())
     .filter(Boolean);
   const out: string[] = [];
   for (const part of parts) {
-    const syn = SYNONYMS.find((g) => g.match.test(part));
+    const syn = synonyms ? SYNONYMS.find((g) => g.match.test(part)) : undefined;
     for (const t of syn ? [part, ...syn.terms] : [part]) {
       const clean = t.replace(/\bb\s*&\s*b\b/gi, "B&B");
       if (!out.some((o) => o.toLowerCase() === clean.toLowerCase())) out.push(clean);
@@ -69,11 +101,16 @@ export async function POST(req: Request) {
   if (!process.env.GOOGLE_PLACES_API_KEY)
     return NextResponse.json({ error: "Manca la chiave GOOGLE_PLACES_API_KEY" }, { status: 500 });
 
-  const { query, comune, provincia } = await req.json();
-  const where = `a ${comune}${provincia ? ` (${provincia})` : ""}`;
+  const body = await req.json();
+  const { query, comune, provincia } = body;
+  const synonyms: boolean = body.synonyms !== false;
+  const center: Center | null = body.center ?? null;
+  const radiusKm: number = Math.min(Math.max(Number(body.radiusKm) || 10, 1), 50);
+  // ricerca a raggio: niente nome del comune nella frase, ma un'area rigida intorno al centro
+  const where = center ? "" : `a ${comune}${provincia ? ` (${provincia})` : ""}`;
   const byId = new Map<string, GPlace>();
 
-  for (const term of expandQuery(String(query))) {
+  for (const term of expandQuery(String(query), synonyms)) {
     let pageToken: string | undefined;
     for (let page = 0; page < 3; page++) {
       const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -84,7 +121,8 @@ export async function POST(req: Request) {
           "X-Goog-FieldMask": FIELDS,
         },
         body: JSON.stringify({
-          textQuery: `${term} ${where}`,
+          textQuery: `${term} ${where}`.trim(),
+          ...(center ? { locationRestriction: boxAround(center, radiusKm) } : {}),
           languageCode: "it",
           regionCode: "IT",
           pageSize: 20,
@@ -113,8 +151,14 @@ export async function POST(req: Request) {
       website: p.websiteUri ?? null,
       rating: p.rating ?? null,
       reviews_count: p.userRatingCount ?? null,
-      city: comune,
-      in_comune: (p.formattedAddress ?? "").toLowerCase().includes(comuneLc),
+      city: center ? (cityFromAddress(p.formattedAddress ?? "") ?? comune) : comune,
+      distance_km:
+        center && p.location
+          ? Math.round(distanceKm(center, { lat: p.location.latitude, lng: p.location.longitude }) * 10) / 10
+          : null,
+      in_comune: center
+        ? !!p.location && distanceKm(center, { lat: p.location.latitude, lng: p.location.longitude }) <= radiusKm
+        : (p.formattedAddress ?? "").toLowerCase().includes(comuneLc),
     }));
 
   return NextResponse.json({ results });
