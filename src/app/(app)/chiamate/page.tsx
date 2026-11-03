@@ -16,14 +16,17 @@ import {
   CalendarClock,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ClipboardCheck,
   Clock,
   ExternalLink,
   FileText,
-  Globe,
   MapPin,
+  Maximize2,
   MessageCircle,
   Mic,
+  Minimize2,
   PartyPopper,
   Phone,
   PhoneMissed,
@@ -35,15 +38,18 @@ import {
   Star,
   ThumbsDown,
   ThumbsUp,
-  User,
   Video,
   type LucideIcon,
 } from "lucide-react";
+import { ScriptSections } from "@/components/ScriptSections";
 import {
   Alert,
   Avatar,
   Card,
   CardTitle,
+  Collapse,
+  Toggle,
+  usePersistentOpen,
   EmptyState,
   Loading,
   Modal,
@@ -91,6 +97,13 @@ export default function ChiamatePage() {
   const [dncOpen, setDncOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
+  const [detailsOpen, setDetailsOpen] = usePersistentOpen("lead-details", false);
+  const [focus, setFocus] = useState(false);
+  // modalità focus: nasconde menu e dettagli
+  useEffect(() => {
+    document.body.classList.toggle("focus-mode", focus);
+    return () => document.body.classList.remove("focus-mode");
+  }, [focus]);
 
   // timer chiamata (anche senza registrazione)
   useEffect(() => {
@@ -300,6 +313,15 @@ export default function ChiamatePage() {
       if (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable) return;
       if (waOpen || evOpen || dncOpen) return;
       const k = e.key.toLowerCase();
+      if (k === "f") {
+        setFocus((f) => !f);
+        e.preventDefault();
+        return;
+      }
+      if (k === "escape" && focus) {
+        setFocus(false);
+        return;
+      }
       if (phase === "ready") {
         if (k === "c") startCall();
         else if (k === "n") noAnswer();
@@ -355,132 +377,166 @@ export default function ChiamatePage() {
 
   return (
     <>
-      <PageTitle
-        sub={
-          <>
-            <b className="text-slate-700">{queueCount}</b> lead in coda
-            {sessionCount > 0 && (
-              <>
-                {" "}· <b className="text-slate-700">{sessionCount}</b> fatti in questa sessione
-              </>
-            )}
-          </>
-        }
-        actions={<Stepper index={stepIndex} />}
-      >
-        Chiamate
-      </PageTitle>
+      {focus && (
+        <button
+          onClick={() => setFocus(false)}
+          className="glass animate-pop-in fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-medium text-[#1d1d1f] shadow-[0_12px_32px_-8px_rgba(0,0,0,0.25)] ring-1 ring-black/5 transition hover:bg-white"
+        >
+          <Minimize2 size={14} /> Esci dal focus <kbd>F</kbd>
+        </button>
+      )}
+      <div data-focus-hide>
+        <PageTitle
+          sub={
+            <>
+              {queueCount} lead in coda
+              {sessionCount > 0 && <> · {sessionCount} fatti in questa sessione</>}
+            </>
+          }
+          actions={
+            <>
+              <Stepper index={stepIndex} />
+              <button className={`${btnSecondary} hidden px-3.5 py-1.5 text-[13px] md:inline-flex`} onClick={() => setFocus(true)}>
+                <Maximize2 size={14} /> Focus <kbd>F</kbd>
+              </button>
+            </>
+          }
+        >
+          Chiamate
+        </PageTitle>
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className={`grid gap-6 lg:grid-cols-5 ${focus ? "mx-auto max-w-5xl pt-6" : ""}`}>
         {/* SCHEDA LEAD */}
         <div className="space-y-6 lg:col-span-2">
           <Card className="overflow-hidden p-0">
-            {/* intestazione "a eroe" */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-brand-900 p-5 text-white">
-              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-500/30 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-violet-500/20 blur-3xl" />
-              <div className="relative flex items-start gap-3">
-                <Avatar name={lead.name} size="lg" />
-                <div className="min-w-0 flex-1">
-                  <h2 className="font-display truncate text-xl font-bold leading-tight">{lead.name}</h2>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-300">
-                    <StatusBadge status={lead.status} />
-                    {(lead.city || lead.province) && (
-                      <span className="flex items-center gap-1">
-                        <MapPin size={13} /> {[lead.city, lead.province].filter(Boolean).join(" · ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
+            {/* intestazione stile app Contatti */}
+            <div className="flex flex-col items-center px-6 pb-5 pt-7 text-center">
+              <Avatar name={lead.name} size="xl" />
+              <h2 className="mt-3 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">{lead.name}</h2>
+              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2 text-[13px] text-slate-500">
+                <StatusBadge status={lead.status} />
+                {(lead.city || lead.province) && (
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} /> {[lead.city, lead.province].filter(Boolean).join(" · ")}
+                  </span>
+                )}
               </div>
               <a
                 href={telLink(lead.phone!)}
-                className="relative mt-5 block font-mono text-[28px] font-semibold tracking-wide text-white tabular-nums transition hover:text-brand-200"
+                className="mt-4 text-[28px] font-light tracking-tight text-[#007aff] tabular-nums transition hover:opacity-70"
               >
                 {formatPhone(lead.phone)}
               </a>
             </div>
 
-            <div className="p-5">
-              <dl className="grid gap-2 text-sm">
-                {lead.contact_person && <Info icon={User} label="Referente">{lead.contact_person}</Info>}
-                {lead.website && (
-                  <Info icon={Globe} label="Sito">
-                    <a className={link} href={lead.website} target="_blank">
-                      {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "").slice(0, 36)}
-                    </a>
-                  </Info>
+            {/* DETTAGLI A TENDINA */}
+            <div data-focus-hide className="border-t border-black/[0.06]">
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(!detailsOpen)}
+                className="flex w-full items-center gap-2 px-6 py-3 text-left text-[15px] transition hover:bg-black/[0.02]"
+                aria-expanded={detailsOpen}
+              >
+                <span className="font-medium text-[#1d1d1f]">Dettagli</span>
+                {!detailsOpen && (
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-slate-400">
+                    {[lead.contact_person, lead.rating != null ? `★ ${lead.rating}` : null, lead.notes ? "nota" : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 )}
-                {lead.rating != null && (
-                  <Info icon={Star} label="Google">
-                    {lead.rating} <span className="text-slate-400">({lead.reviews_count} recensioni)</span>
-                  </Info>
-                )}
-                {lead.next_action_at && (
-                  <Info icon={CalendarClock} label="Richiamata">{formatDateTime(lead.next_action_at)}</Info>
-                )}
-              </dl>
-              {lead.notes && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{lead.notes}</p>}
-              <Link href={`/crm/${lead.id}`} className={`${link} mt-3 inline-flex items-center gap-1 text-sm`} target="_blank">
-                Apri scheda completa <ExternalLink size={13} />
-              </Link>
+                <ChevronDown
+                  size={16}
+                  className={`ml-auto shrink-0 text-slate-400 transition-transform duration-300 ${detailsOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              <Collapse open={detailsOpen}>
+                <div className="px-6 pb-5">
+                  <dl className="divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-[#767680]/[0.06] text-[15px]">
+                    {lead.contact_person && <Info label="Referente">{lead.contact_person}</Info>}
+                    {lead.website && (
+                      <Info label="Sito">
+                        <a className={link} href={lead.website} target="_blank">
+                          {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "").slice(0, 36)}
+                        </a>
+                      </Info>
+                    )}
+                    {lead.rating != null && (
+                      <Info label="Google">
+                        <span className="inline-flex items-center gap-1">
+                          <Star size={13} className="fill-[#ff9500] text-[#ff9500]" /> {lead.rating}
+                          <span className="text-slate-400">({lead.reviews_count})</span>
+                        </span>
+                      </Info>
+                    )}
+                    {lead.next_action_at && <Info label="Richiamata">{formatDateTime(lead.next_action_at)}</Info>}
+                    <Info label="Scheda">
+                      <Link href={`/crm/${lead.id}`} className={`${link} inline-flex items-center gap-1`} target="_blank">
+                        Apri <ExternalLink size={12} />
+                      </Link>
+                    </Info>
+                  </dl>
+                  {lead.notes && (
+                    <p className="mt-3 rounded-2xl bg-[#ff9500]/[0.1] p-3.5 text-[14px] text-[#8a5000]">{lead.notes}</p>
+                  )}
+                </div>
+              </Collapse>
             </div>
 
             {/* CONTROLLI CHIAMATA */}
-            <div className="border-t border-slate-100 bg-slate-50/60 p-5">
+            <div className="border-t border-black/[0.06] p-6">
               {phase === "ready" && (
                 <div className="space-y-4">
                   <button className={`${btnGreen} ${btnLg} w-full`} onClick={startCall}>
-                    <Phone size={18} /> Chiama ora <kbd className="ml-1">C</kbd>
+                    <Phone size={19} fill="currentColor" /> Chiama <kbd className="ml-1">C</kbd>
                   </button>
                   <div className="grid grid-cols-2 gap-2">
-                    <button className={btnSecondary} onClick={noAnswer}>
+                    <button className={`${btnSecondary} whitespace-nowrap px-3`} onClick={noAnswer}>
                       <PhoneMissed size={15} /> Non risponde <kbd>N</kbd>
                     </button>
                     <button className={btnSecondary} onClick={skip}>
                       <SkipForward size={15} /> Salta <kbd>S</kbd>
                     </button>
                   </div>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={recordEnabled} onChange={(e) => setRecordEnabled(e.target.checked)} />
-                    <Mic size={14} className="text-slate-400" />
-                    Registra la chiamata
-                    {settings?.audio_device_label && (
-                      <span className="truncate text-xs text-slate-400">({settings.audio_device_label})</span>
-                    )}
-                  </label>
-                  <p className="text-xs leading-relaxed text-slate-500">
-                    Tieni l&apos;audio sugli altoparlanti del Mac (niente cuffie), così il microfono sente anche il cliente.
-                  </p>
+                  <div className="rounded-2xl bg-[#767680]/[0.06] px-4 py-3">
+                    <Toggle
+                      checked={recordEnabled}
+                      onChange={setRecordEnabled}
+                      icon={Mic}
+                      label="Registra la chiamata"
+                      hint={settings?.audio_device_label ?? "Vivavoce sul Mac, niente cuffie"}
+                    />
+                  </div>
                 </div>
               )}
 
               {phase === "calling" && (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <div className="flex flex-col items-center py-2">
-                    <div className="relative flex h-36 w-36 items-center justify-center">
+                    <div className="relative flex h-40 w-40 items-center justify-center">
                       {isRecording && (
                         <>
-                          <span className="animate-ring absolute inset-0 rounded-full border-2 border-rose-500" />
-                          <span className="animate-ring absolute inset-0 rounded-full border-2 border-rose-500 [animation-delay:0.8s]" />
+                          <span className="animate-ring absolute inset-0 rounded-full border-2 border-[#ff3b30]" />
+                          <span className="animate-ring absolute inset-0 rounded-full border-2 border-[#ff3b30] [animation-delay:0.8s]" />
                         </>
                       )}
                       <span
-                        className={`relative flex h-32 w-32 items-center justify-center rounded-full border-4 bg-white shadow-lg ${
-                          isRecording ? "border-rose-500 shadow-rose-500/20" : "border-emerald-500 shadow-emerald-500/20"
+                        className={`relative flex h-36 w-36 items-center justify-center rounded-full bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)] ring-[5px] ${
+                          isRecording ? "ring-[#ff3b30]" : "ring-[#34c759]"
                         }`}
                       >
-                        <span className="font-display text-3xl font-bold tracking-tight tabular-nums text-slate-900">
+                        <span className="text-[38px] font-light tracking-tight tabular-nums text-[#1d1d1f]">
                           {formatDuration(callSeconds)}
                         </span>
                       </span>
                     </div>
                     {isRecording ? (
-                      <span className="mt-2 flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> REC
+                      <span className="mt-3 flex items-center gap-1.5 text-[13px] font-medium text-[#ff3b30]">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-[#ff3b30]" /> Registrazione in corso
                       </span>
                     ) : (
-                      <span className="mt-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">Non registrata</span>
+                      <span className="mt-3 text-[13px] text-slate-400">Non registrata</span>
                     )}
                   </div>
                   {isRecording && (
@@ -495,10 +551,10 @@ export default function ChiamatePage() {
                     </>
                   )}
                   <button className={`${btnRed} ${btnLg} w-full`} onClick={endCall}>
-                    <PhoneOff size={18} /> Termina chiamata <kbd className="ml-1">T</kbd>
+                    <PhoneOff size={19} /> Termina <kbd className="ml-1">T</kbd>
                   </button>
                   <div className="grid grid-cols-2 gap-2">
-                    <button className={btnSecondary} onClick={noAnswer}>
+                    <button className={`${btnSecondary} whitespace-nowrap px-3`} onClick={noAnswer}>
                       <PhoneMissed size={15} /> Non risponde <kbd>N</kbd>
                     </button>
                     <a className={btnSecondary} href={telLink(lead.phone!)}>
@@ -510,19 +566,19 @@ export default function ChiamatePage() {
 
               {phase === "analyzing" && (
                 <div className="flex flex-col items-center gap-3 py-6 text-center">
-                  <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
-                    <Sparkles size={22} className="animate-pulse" />
+                  <span className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-br from-[#5856d6] to-[#af52de] text-white shadow-lg shadow-purple-500/30">
+                    <Sparkles size={24} className="animate-pulse" />
                   </span>
                   <div>
-                    <p className="font-medium text-slate-900">Analizzo la chiamata…</p>
-                    <p className="text-sm text-slate-500">Trascrizione e riassunto con Claude, pochi secondi.</p>
+                    <p className="text-[17px] font-semibold text-[#1d1d1f]">Analizzo la chiamata…</p>
+                    <p className="text-[13px] text-slate-500">Trascrizione e riassunto con Claude, pochi secondi.</p>
                   </div>
                 </div>
               )}
 
               {phase === "result" && (
-                <p className="flex items-center gap-2 text-sm text-slate-600">
-                  <CheckCircle2 size={16} className="text-emerald-600" /> Chiamata conclusa: scegli l&apos;esito a destra.
+                <p className="flex items-center gap-2 text-[15px] text-slate-600">
+                  <CheckCircle2 size={18} className="text-[#34c759]" /> Chiamata conclusa: scegli l&apos;esito.
                 </p>
               )}
               {error && <Alert tone="error" className="mt-3">{error}</Alert>}
@@ -534,20 +590,18 @@ export default function ChiamatePage() {
         <div className="lg:col-span-3">
           {phase !== "result" ? (
             <Card className="lg:sticky lg:top-6">
-              <CardTitle icon={FileText}>{callScript?.title ?? "Script"}</CardTitle>
-              <div className="paper whitespace-pre-wrap rounded-xl border border-slate-200 py-4 pl-7 pr-5 text-[16px] leading-8 text-slate-800 shadow-inner shadow-slate-200/40">
-                {callScript ? (
-                  fillTemplate(callScript.body, lead, settings)
-                ) : (
-                  <span className="text-slate-500">
-                    Nessuno script: crealo nella pagina <Link className={link} href="/script">Script</Link>.
-                  </span>
-                )}
-              </div>
+              <CardTitle icon={FileText} tone="orange">{callScript?.title ?? "Script"}</CardTitle>
+              {callScript ? (
+                <ScriptSections text={fillTemplate(callScript.body, lead, settings)} large={focus} />
+              ) : (
+                <p className="text-[15px] text-slate-500">
+                  Nessuno script: crealo nella pagina <Link className={link} href="/script">Script</Link>.
+                </p>
+              )}
             </Card>
           ) : (
             <Card className="space-y-6">
-              <CardTitle icon={ClipboardCheck} sub="Controlla, conferma le azioni e passa al prossimo lead.">
+              <CardTitle icon={ClipboardCheck} tone="indigo" sub="Controlla, conferma le azioni e passa al prossimo lead.">
                 Esito della chiamata
               </CardTitle>
 
@@ -563,11 +617,11 @@ export default function ChiamatePage() {
               )}
 
               {analysis && (
-                <div className="space-y-2 rounded-xl border border-brand-100 bg-brand-50/50 p-4 text-sm text-slate-700">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                <div className="space-y-2 rounded-2xl bg-gradient-to-br from-[#5856d6]/[0.07] to-[#af52de]/[0.07] p-4 text-[15px] text-slate-700">
+                  <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#5856d6]">
                     <Sparkles size={13} /> Riassunto di Claude
                   </div>
-                  <p className="text-slate-800">{analysis.riassunto}</p>
+                  <p className="text-[#1d1d1f]">{analysis.riassunto}</p>
                   {analysis.obiezioni.length > 0 && (
                     <p>
                       <b>Obiezioni:</b> {analysis.obiezioni.join("; ")}
@@ -596,11 +650,17 @@ export default function ChiamatePage() {
                       <button
                         key={o.value}
                         onClick={() => setOutcome(o.value)}
-                        className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-center text-sm font-semibold transition-all duration-150 ${
-                          sel ? `${st.on} scale-[1.03]` : "border-slate-200 bg-white text-slate-600 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow"
+                        className={`relative flex flex-col items-center gap-2 rounded-2xl px-2 py-3.5 text-center text-[13px] font-medium transition-all duration-200 active:scale-95 ${
+                          sel ? "bg-white text-[#1d1d1f] shadow-[0_4px_16px_-4px_rgba(0,0,0,0.15)] ring-2 ring-[#007aff]" : "bg-[#767680]/[0.08] text-slate-600 hover:bg-[#767680]/[0.12]"
                         }`}
                       >
-                        <st.icon size={20} />
+                        <span
+                          className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                            sel ? `${st.on} text-white` : "bg-white text-slate-500"
+                          }`}
+                        >
+                          <st.icon size={18} />
+                        </span>
                         {o.label.replace(" (no)", "")}
                         <kbd className="absolute right-1.5 top-1.5">{i + 1}</kbd>
                       </button>
@@ -610,8 +670,9 @@ export default function ChiamatePage() {
               </div>
 
               {/* AZIONI PROPOSTE: partono solo dopo conferma */}
-              <div className="space-y-2">
+              <div>
                 <span className={label}>Azioni consigliate</span>
+                <div className="overflow-hidden rounded-2xl bg-[#767680]/[0.06] [&>*+*]:border-t [&>*+*]:border-black/[0.06]">
                 {outcome === "non_risponde" && (
                   <ActionButton icon={MessageCircle} done={done.wa} onClick={() => setWaOpen("wa_no_answer")}>
                     Inviamo il WhatsApp &quot;non risponde&quot;?
@@ -641,6 +702,7 @@ export default function ChiamatePage() {
                     Aggiungiamo a &quot;non contattare&quot;?
                   </ActionButton>
                 )}
+                </div>
               </div>
 
               <div>
@@ -653,7 +715,7 @@ export default function ChiamatePage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
+              <div className="flex items-center justify-between gap-3 border-t border-black/[0.06] pt-5">
                 <span className="hidden text-xs text-slate-400 sm:block">
                   Premi <kbd>Invio</kbd> per salvare
                 </span>
@@ -717,43 +779,40 @@ export default function ChiamatePage() {
 }
 
 const OUTCOME_STYLE: Record<Outcome, { icon: LucideIcon; on: string }> = {
-  non_risponde: { icon: PhoneMissed, on: "border-slate-700 bg-slate-700 text-white shadow-lg shadow-slate-700/30" },
-  da_richiamare: { icon: Clock, on: "border-amber-500 bg-amber-500 text-white shadow-lg shadow-amber-500/30" },
-  interessato: { icon: ThumbsUp, on: "border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-600/30" },
-  non_interessato: { icon: ThumbsDown, on: "border-rose-600 bg-rose-600 text-white shadow-lg shadow-rose-600/30" },
+  non_risponde: { icon: PhoneMissed, on: "bg-[#8e8e93]" },
+  da_richiamare: { icon: Clock, on: "bg-[#ff9500]" },
+  interessato: { icon: ThumbsUp, on: "bg-[#34c759]" },
+  non_interessato: { icon: ThumbsDown, on: "bg-[#ff3b30]" },
 };
 
 function Stepper({ index }: { index: number }) {
   const steps = ["Pronto", "In chiamata", "Esito"];
   return (
-    <ol className="flex items-center gap-2 text-xs font-medium">
+    <ol className="flex items-center gap-0.5 rounded-full bg-[#767680]/[0.12] p-0.5 text-[12px] font-medium">
       {steps.map((s, i) => (
-        <li key={s} className="flex items-center gap-2">
-          <span
-            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
-              i === index
-                ? "bg-brand-600 text-white"
-                : i < index
-                  ? "bg-brand-50 text-brand-700"
-                  : "bg-white text-slate-400 ring-1 ring-slate-200"
-            }`}
-          >
-            {i < index ? <CheckCircle2 size={12} /> : <span>{i + 1}</span>}
-            {s}
-          </span>
-          {i < steps.length - 1 && <span className="h-px w-3 bg-slate-300" />}
+        <li
+          key={s}
+          className={`flex items-center gap-1 rounded-full px-3 py-1 transition-all duration-300 ${
+            i === index
+              ? "bg-white text-[#1d1d1f] shadow-[0_2px_6px_rgba(0,0,0,0.12)]"
+              : i < index
+                ? "text-[#34c759]"
+                : "text-slate-500"
+          }`}
+        >
+          {i < index && <Check size={12} strokeWidth={3} />}
+          {s}
         </li>
       ))}
     </ol>
   );
 }
 
-function Info({ icon: Icon, label: l, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
+function Info({ label: l, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <Icon size={14} className="shrink-0 text-slate-400" />
-      <dt className="w-20 shrink-0 text-slate-500">{l}</dt>
-      <dd className="min-w-0 truncate text-slate-800">{children}</dd>
+    <div className="flex items-center gap-3 px-4 py-2.5">
+      <dt className="w-24 shrink-0 text-slate-500">{l}</dt>
+      <dd className="min-w-0 flex-1 truncate text-right text-[#1d1d1f]">{children}</dd>
     </div>
   );
 }
@@ -772,22 +831,18 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className={`group flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
-        done
-          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-          : "border-slate-200 bg-white text-slate-800 hover:border-brand-300 hover:bg-brand-50/40"
-      }`}
+      className="group flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] text-[#1d1d1f] transition hover:bg-black/[0.03] active:bg-black/[0.05]"
     >
       <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-          done ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600 group-hover:bg-brand-100 group-hover:text-brand-700"
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white transition-colors ${
+          done ? "bg-[#34c759]" : "bg-[#007aff]"
         }`}
       >
-        {done ? <Check size={16} /> : <Icon size={16} />}
+        {done ? <Check size={15} strokeWidth={3} /> : <Icon size={15} />}
       </span>
-      <span className="flex-1 font-medium">{children}</span>
-      <span className={`text-xs font-medium ${done ? "text-emerald-700" : "text-brand-600"}`}>
-        {done ? "Fatto" : "Conferma →"}
+      <span className="flex-1">{children}</span>
+      <span className={`flex items-center gap-0.5 text-[13px] ${done ? "font-medium text-[#34c759]" : "text-slate-400"}`}>
+        {done ? "Fatto" : <ChevronRight size={18} className="text-slate-300" />}
       </span>
     </button>
   );

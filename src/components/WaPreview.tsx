@@ -3,7 +3,7 @@
 export function WaPreview({ text, className = "" }: { text: string; className?: string }) {
   const time = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   return (
-    <div className={`wa-bg overflow-y-auto rounded-xl border border-slate-200 p-4 ${className || "h-80"}`}>
+    <div className={`wa-bg overflow-y-auto rounded-2xl p-4 ring-1 ring-black/[0.04] ${className || "h-80"}`}>
       <div className="ml-auto max-w-[88%] rounded-xl rounded-tr-sm bg-[#d9fdd3] px-3 pb-1.5 pt-2 text-[14.5px] leading-snug text-slate-900 shadow-sm">
         <div className="whitespace-pre-wrap break-words">
           {text.trim() ? text : <span className="italic text-slate-400">Il messaggio comparirà qui…</span>}

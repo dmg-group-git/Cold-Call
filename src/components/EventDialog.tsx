@@ -111,7 +111,7 @@ export function EventDialog({
           <textarea className={`${input} h-24`} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-2 border-t border-black/[0.06] pt-4 sm:flex-row sm:justify-end">
           <button className={btnSecondary} onClick={onClose}>
             Annulla
           </button>

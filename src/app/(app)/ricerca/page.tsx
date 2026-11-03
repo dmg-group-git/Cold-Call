@@ -17,7 +17,21 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { Alert, Card, PageTitle, btnPrimary, btnSecondary, input, label, link } from "@/components/ui";
+import {
+  Alert,
+  Card,
+  Collapse,
+  CollapsibleCard,
+  IconTile,
+  PageTitle,
+  Toggle,
+  btnPrimary,
+  btnSecondary,
+  input,
+  label,
+  link,
+  usePersistentOpen,
+} from "@/components/ui";
 import { PhoneKind } from "@/components/PhoneKind";
 import { formatDateTime, phoneKind } from "@/lib/utils";
 
@@ -89,6 +103,8 @@ export default function RicercaPage() {
   // --- stato
   const [searchProv, setSearchProv] = useState(provincia);
   const [running, setRunning] = useState(false);
+  const [formOpen, setFormOpen] = useState(true);
+  const [savedOpen, setSavedOpen] = usePersistentOpen("saved-searches", true);
   const [progress, setProgress] = useState({ done: 0, total: 0, current: "" });
   const [results, setResults] = useState<Result[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -128,6 +144,7 @@ export default function RicercaPage() {
     const prov = p.mode === "provincia" ? p.provincia : (pCity?.provincia ?? "");
     const sigla = prov.match(/\((\w+)\)/)?.[1] ?? "";
     setRunning(true);
+    setFormOpen(false); // chiude il pannello: resta la riga riassuntiva
     setActiveSaved(fromSaved);
     setSearchProv(prov);
     setMsg(null);
@@ -327,7 +344,15 @@ export default function RicercaPage() {
   }
 
   const allComuni = COMUNI[provincia] ?? [];
-  const seg = (active: boolean) => `rounded-md px-2.5 py-1 ${active ? "bg-slate-900 text-white" : "text-slate-600"}`;
+  const seg = (active: boolean) =>
+    `rounded-[8px] px-2.5 py-1.5 font-medium transition-all duration-200 ${active ? "bg-white text-[#1d1d1f] shadow-[0_3px_8px_rgba(0,0,0,0.12)]" : "text-slate-600 hover:text-[#1d1d1f]"}`;
+  const segWrap = "inline-flex gap-0.5 rounded-[10px] bg-[#767680]/[0.12] p-0.5";
+  const whereLabel =
+    mode === "provincia"
+      ? `${provincia} · ${comuni.length} comuni`
+      : mode === "raggio"
+        ? `${radiusKm} km da ${cityText || "…"}`
+        : cityText || "città da scegliere";
   const small = `${input} py-1.5 text-sm`;
 
   return (
@@ -337,11 +362,17 @@ export default function RicercaPage() {
       </PageTitle>
 
       {saved.length > 0 && (
-        <Card className="mb-5">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <Bookmark size={15} className="text-brand-500" /> Ricerche salvate
-          </div>
-          <ul className="divide-y divide-slate-100">
+        <CollapsibleCard
+          className="mb-5"
+          icon={Bookmark}
+          tone="orange"
+          title="Ricerche salvate"
+          summary={`${saved.length} ${saved.length === 1 ? "ricerca" : "ricerche"}: ${saved.map((x) => x.name).join(", ")}`}
+          sub="Rifalle per vedere solo le attività nuove."
+          open={savedOpen}
+          onToggle={setSavedOpen}
+        >
+          <ul className="divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-[#767680]/[0.06] px-4">
             {saved.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                 <div>
@@ -361,10 +392,29 @@ export default function RicercaPage() {
               </li>
             ))}
           </ul>
-        </Card>
+        </CollapsibleCard>
       )}
 
-      <Card className="space-y-5">
+      <Card className="p-0">
+        <button
+          type="button"
+          onClick={() => setFormOpen(!formOpen)}
+          aria-expanded={formOpen}
+          className="flex w-full items-center gap-3 px-6 py-4 text-left"
+        >
+          <IconTile icon={Search} tone="purple" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Nuova ricerca</h2>
+            <p className="truncate text-[13px] text-slate-500">
+              {formOpen ? "Cosa cerchi e dove" : `${query || "…"} · ${whereLabel}${synonyms ? " · con sinonimi" : ""}`}
+            </p>
+          </div>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/[0.04] text-slate-500">
+            <ChevronDown size={16} strokeWidth={2.5} className={`transition-transform duration-300 ${formOpen ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+        <Collapse open={formOpen}>
+        <div className="space-y-5 px-6 pb-2">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <span className={label}>1. Che attività cerchi?</span>
@@ -372,14 +422,13 @@ export default function RicercaPage() {
             <p className="mt-1 text-xs text-slate-500">
               Puoi scriverne più di una separate da virgola (es. B&amp;B, agriturismo): unisco i risultati senza doppioni.
             </p>
-            <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" checked={synonyms} onChange={(e) => setSynonyms(e.target.checked)} />
-              <Sparkles size={13} className="text-brand-500" /> Cerca anche i sinonimi (più risultati)
-            </label>
+            <div className="mt-3 rounded-2xl bg-[#767680]/[0.06] px-4 py-2.5">
+              <Toggle checked={synonyms} onChange={setSynonyms} icon={Sparkles} label="Cerca anche i sinonimi" hint="Più risultati" />
+            </div>
           </div>
           <div>
             <span className={label}>2. Dove?</span>
-            <div className="mb-2 grid grid-cols-3 rounded-lg border border-slate-200 p-0.5 text-xs">
+            <div className="mb-2 grid grid-cols-3 gap-0.5 rounded-[10px] bg-[#767680]/[0.12] p-0.5 text-xs">
               {(
                 [
                   ["provincia", "Provincia (più comuni)"],
@@ -437,7 +486,7 @@ export default function RicercaPage() {
           </div>
         </div>
         {mode === "provincia" && (
-          <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
+          <details className="group rounded-2xl bg-[#767680]/[0.06]">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm">
               <span className="flex items-center gap-2 text-slate-700">
                 <MapPin size={15} className="text-slate-400" />
@@ -447,7 +496,7 @@ export default function RicercaPage() {
                 Scegli <ChevronDown size={14} className="transition group-open:rotate-180" />
               </span>
             </summary>
-            <div className="border-t border-slate-200 px-4 py-3">
+            <div className="border-t border-black/[0.06] px-4 py-3">
               <div className="flex gap-2 text-xs">
                 <button className={`${btnSecondary} px-2.5 py-1 text-xs`} onClick={() => setComuni(allComuni)}>Tutti</button>
                 <button className={`${btnSecondary} px-2.5 py-1 text-xs`} onClick={() => setComuni([])}>Nessuno</button>
@@ -467,7 +516,10 @@ export default function RicercaPage() {
             </div>
           </details>
         )}
-        <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
+        </div>
+        </Collapse>
+        <div className="space-y-4 border-t border-black/[0.06] px-6 py-5">
+        <div className="flex flex-wrap items-center gap-3">
           {!running ? (
             <button className={btnPrimary} onClick={() => search()} disabled={!canSearch}>
               <Search size={16} /> Cerca su Google
@@ -495,9 +547,9 @@ export default function RicercaPage() {
                 <span>Cerco: <b>{progress.current}</b>…</span>
                 <span className="tabular-nums">{Math.min(progress.done + 1, progress.total)}/{progress.total}</span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-1.5 overflow-hidden rounded-full bg-black/[0.06]">
                 <div
-                  className="h-full rounded-full bg-brand-500 transition-all"
+                  className="h-full rounded-full bg-[#007aff] transition-all duration-500"
                   style={{ width: `${progress.total ? ((progress.done + 1) / progress.total) * 100 : 0}%` }}
                 />
               </div>
@@ -509,6 +561,7 @@ export default function RicercaPage() {
           Ogni comune costa alcune richieste a Google (con i sinonimi qualcuna in più). Ricorda di verificare il Registro
           delle Opposizioni per i numeri di persone fisiche.
         </p>
+        </div>
       </Card>
 
       {msg && (
@@ -522,7 +575,7 @@ export default function RicercaPage() {
 
       {results.length > 0 && (
         <Card className="mt-6 p-0">
-          <div className="sticky top-[104px] z-10 space-y-3 rounded-t-2xl border-b border-slate-200 bg-white/95 p-4 backdrop-blur md:top-0">
+          <div className="glass sticky top-12 z-10 space-y-3 rounded-t-[22px] border-b border-black/[0.06] p-4 md:top-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm text-slate-600">
                 <b className="text-slate-900">{visible.length}</b> risultati su {results.length} ·{" "}
@@ -533,7 +586,7 @@ export default function RicercaPage() {
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+              <div className={segWrap}>
                 {(
                   [
                     ["tutti", `Tutti`],
@@ -546,7 +599,7 @@ export default function RicercaPage() {
                   </button>
                 ))}
               </div>
-              <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+              <div className={segWrap}>
                 {(
                   [
                     ["tutti", "Ogni numero"],
@@ -559,41 +612,42 @@ export default function RicercaPage() {
                   </button>
                 ))}
               </div>
-              <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5" value={maxRating} onChange={(e) => setMaxRating(e.target.value)}>
+              <select className="rounded-[10px] border-0 bg-[#767680]/[0.12] px-2.5 py-1.5 font-medium text-slate-700" value={maxRating} onChange={(e) => setMaxRating(e.target.value)}>
                 <option value="">Qualsiasi voto</option>
                 <option value="4.5">Voto sotto 4,5 ★</option>
                 <option value="4">Voto sotto 4 ★</option>
                 <option value="3.5">Voto sotto 3,5 ★</option>
               </select>
-              <label className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1">
+              <label className="flex items-center gap-1.5 rounded-[10px] bg-[#767680]/[0.12] px-2.5 py-1 font-medium text-slate-700">
                 Max recensioni
                 <input
                   type="number"
                   min={0}
-                  className="w-16 rounded border border-slate-200 px-1.5 py-0.5"
+                  className="w-14 rounded-md border-0 bg-white px-1.5 py-0.5"
                   value={maxReviews}
                   onChange={(e) => setMaxReviews(e.target.value)}
                   placeholder="—"
                 />
               </label>
             </div>
-            <div className="flex flex-wrap gap-4 text-xs text-slate-700">
-              <label className="flex cursor-pointer items-center gap-1.5">
-                <input type="checkbox" checked={onlyPhone} onChange={(e) => setOnlyPhone(e.target.checked)} /> Solo con telefono
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5">
-                <input type="checkbox" checked={onlyInArea} onChange={(e) => setOnlyInArea(e.target.checked)} />
-                {mode === "raggio" ? `Solo entro ${radiusKm} km` : "Solo nel comune cercato"}
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5">
-                <input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} />
-                {activeSaved ? "Solo novità (non viste l'ultima volta e non nel CRM)" : "Nascondi quelli già nel CRM"}
-              </label>
+            <div className="grid gap-x-6 gap-y-2 sm:grid-cols-3 [&_label>span]:text-[13px]">
+              <Toggle checked={onlyPhone} onChange={setOnlyPhone} label="Solo con telefono" />
+              <Toggle
+                checked={onlyInArea}
+                onChange={setOnlyInArea}
+                label={mode === "raggio" ? `Solo entro ${radiusKm} km` : "Solo nel comune cercato"}
+              />
+              <Toggle
+                checked={onlyNew}
+                onChange={setOnlyNew}
+                label={activeSaved ? "Solo novità" : "Nascondi già nel CRM"}
+                hint={activeSaved ? "Non viste l'ultima volta e non nel CRM" : undefined}
+              />
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+              <thead className="bg-[#767680]/[0.04] text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="p-3">
                     <input
@@ -623,7 +677,7 @@ export default function RicercaPage() {
               </thead>
               <tbody>
                 {visible.map((r) => (
-                  <tr key={r.place_id} className={`border-t border-slate-100 ${selected.has(r.place_id) ? "bg-brand-50/40" : ""}`}>
+                  <tr key={r.place_id} className={`border-t border-black/[0.06] ${selected.has(r.place_id) ? "bg-brand-50/40" : ""}`}>
                     <td className="p-3">
                       {r.status === "nuovo" ? (
                         <input type="checkbox" checked={selected.has(r.place_id)} onChange={() => toggle(r.place_id)} />

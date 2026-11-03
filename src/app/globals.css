@@ -1,18 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-brand-50: #eaf3ff;
+  --color-brand-100: #d4e7ff;
+  --color-brand-200: #a9cfff;
+  --color-brand-300: #74b1ff;
+  --color-brand-400: #3d93ff;
+  --color-brand-500: #0a84ff;
+  --color-brand-600: #007aff;
+  --color-brand-700: #0062cc;
+  --color-brand-800: #004a99;
+  --color-brand-900: #003166;
+  /* sul Mac/iPhone usa il font di sistema Apple (SF Pro), altrove Inter */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --animate-ring: ring 1.6s ease-out infinite;
   --animate-shimmer: shimmer 1.4s linear infinite;
 }
@@ -21,14 +22,46 @@
   color-scheme: light;
 }
 body {
-  background: linear-gradient(180deg, #eef0f7 0%, #f7f8fc 320px, #f7f8fc 100%) fixed;
-  color: #0f172a;
-  font-feature-settings: "cv11", "ss01";
+  background: #f5f5f7;
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
+}
+/* velature di colore sfocate dietro le card */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 28rem at 85% -5%, rgba(0, 122, 255, 0.10), transparent 70%),
+    radial-gradient(36rem 26rem at 5% 105%, rgba(175, 82, 222, 0.08), transparent 70%);
 }
 h1, h2, h3, .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.022em;
 }
+/* vetro smerigliato stile macOS */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+/* tendina animata: si apre/chiude scorrendo */
+.collapse-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease;
+  opacity: 0;
+}
+.collapse-grid[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.collapse-grid > div { overflow: hidden; min-height: 0; }
+/* modalità focus: nasconde menu e dettagli */
+body.focus-mode [data-app-nav] { display: none !important; }
+body.focus-mode [data-focus-hide] { display: none !important; }
 @keyframes ring {
   0% { transform: scale(1); opacity: 0.6; }
   100% { transform: scale(1.6); opacity: 0; }
@@ -37,12 +70,7 @@ h1, h2, h3, .font-display {
   from { background-position: -200% 0; }
   to { background-position: 200% 0; }
 }
-.paper {
-  background:
-    linear-gradient(90deg, var(--color-brand-500) 0 4px, transparent 4px),
-    repeating-linear-gradient(180deg, transparent 0 31px, #eef0f5 31px 32px),
-    #fff;
-}
+
 .wa-bg {
   background-color: #e5ddd5;
   background-image:
@@ -57,14 +85,27 @@ h1, h2, h3, .font-display {
   to { opacity: 1; }
 }
 @keyframes pop-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
   to { opacity: 1; transform: none; }
 }
-.animate-fade-in { animation: fade-in 0.15s ease-out; }
-.animate-pop-in { animation: pop-in 0.18s ease-out; }
-.animate-page { animation: pop-in 0.28s ease-out both; }
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@utility animate-sheet { animation: sheet-up 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
+@utility animate-fade-in { animation: fade-in 0.2s ease-out; }
+@utility animate-pop-in { animation: pop-in 0.25s cubic-bezier(0.32, 0.72, 0, 1); }
+@utility animate-page { animation: pop-in 0.35s cubic-bezier(0.32, 0.72, 0, 1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-in, .animate-pop-in, .animate-page { animation: none; }
+  .animate-fade-in, .animate-pop-in, .animate-page, .animate-sheet { animation: none; }
+  .collapse-grid { transition: none; }
+}
+
+/* contorno di focus morbido (tastiera) */
+:focus { outline: none; }
+:focus-visible {
+  outline: 3px solid rgba(0, 122, 255, 0.35);
+  outline-offset: 2px;
 }
 
 /* checkbox e radio con il colore del brand */

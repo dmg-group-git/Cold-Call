@@ -119,7 +119,7 @@ export function WhatsAppDialog({
             Si aprirà WhatsApp con il messaggio pronto per {lead.phone}: premi Invia lì. Non inviare troppi messaggi a
             numeri sconosciuti, WhatsApp potrebbe bloccare il numero.
           </p>
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 border-t border-black/[0.06] pt-4 sm:flex-row sm:justify-end">
             <button className={btnSecondary} onClick={onClose}>
               Annulla
             </button>

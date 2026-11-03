@@ -57,7 +57,7 @@ export default function CrmPage() {
 
   const pill = (active: boolean) =>
     `flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition ${
-      active ? "bg-slate-900 text-white shadow-md shadow-slate-900/20" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:-translate-y-px hover:bg-slate-50 hover:shadow"
+      active ? "bg-[#1d1d1f] text-white" : "bg-white text-slate-600 shadow-[0_1px_3px_rgba(0,0,0,0.06)] ring-1 ring-black/[0.04] hover:bg-slate-50 active:scale-95"
     }`;
 
   return (
@@ -85,7 +85,7 @@ export default function CrmPage() {
       </div>
 
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-slate-100 p-3">
+        <div className="border-b border-black/[0.06] p-3">
           <div className="relative max-w-sm">
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -126,7 +126,7 @@ export default function CrmPage() {
                   <th className="hidden px-5 py-3 sm:table-cell">Aggiornato</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100/80">
+              <tbody className="divide-y divide-black/[0.06]">
                 {filtered.map((l) => (
                   <tr
                     key={l.id}

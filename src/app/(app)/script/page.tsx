@@ -7,6 +7,7 @@ import { fillTemplate, materialsText, withMaterials } from "@/lib/utils";
 import { MAX_FILE_MB, uploadMaterialFile } from "@/lib/materials";
 import { useAppData } from "@/components/useAppData";
 import { WaPreview } from "@/components/WaPreview";
+import { ScriptSections } from "@/components/ScriptSections";
 import { Alert, Card, Loading, PageTitle, Spinner, btnPrimary, btnSecondary, input, label } from "@/components/ui";
 
 const KIND_LABEL: Record<Script["kind"], string> = {
@@ -101,15 +102,15 @@ export default function ScriptPage() {
       </PageTitle>
       {error && <Alert tone="error" className="mb-4">{error}</Alert>}
 
-      <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-slate-200/60 p-1">
+      <div className="mb-5 inline-flex max-w-full gap-0.5 overflow-x-auto rounded-[10px] bg-[#767680]/[0.12] p-0.5">
         {ORDER.map((k) => {
           const Icon = KIND_ICON[k];
           return (
             <button
               key={k}
               onClick={() => setTab(k)}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition ${
-                tab === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              className={`flex items-center gap-2 whitespace-nowrap rounded-[8px] px-3.5 py-1.5 text-[13px] font-medium transition-all duration-200 ${
+                tab === k ? "bg-white text-[#1d1d1f] shadow-[0_3px_8px_rgba(0,0,0,0.12)]" : "text-slate-600 hover:text-[#1d1d1f]"
               }`}
             >
               <Icon size={15} /> {KIND_LABEL[k]}
@@ -128,13 +129,19 @@ export default function ScriptPage() {
               value={drafts[kind] ?? ""}
               onChange={(e) => setDrafts({ ...drafts, [kind]: e.target.value })}
             />
+            {kind === "call" && (
+              <p className="mt-2 text-xs text-slate-500">
+                Scrivi <code className="rounded bg-black/5 px-1"># Titolo</code> su una riga per dividere lo script in sezioni
+                richiudibili (es. # Apertura, # Obiezioni, # Chiusura).
+              </p>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-slate-500">Inserisci:</span>
               {vars.map((v) => (
                 <button
                   key={v}
                   onClick={() => insertVar(v)}
-                  className="rounded-md bg-brand-50 px-2 py-0.5 font-mono text-xs text-brand-700 transition hover:bg-brand-100"
+                  className="rounded-full bg-[#007aff]/10 px-2.5 py-0.5 text-xs font-medium text-[#007aff] transition hover:bg-[#007aff]/15 active:scale-95"
                 >
                   {v}
                 </button>
@@ -146,8 +153,8 @@ export default function ScriptPage() {
               Anteprima <span className="font-normal text-slate-400">(con dati di esempio)</span>
             </span>
             {kind === "call" ? (
-              <div className="paper h-80 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 py-4 pl-7 pr-4 text-[15px] leading-8 text-slate-800 shadow-inner shadow-slate-200/40">
-                {preview(kind)}
+              <div className="h-80 overflow-y-auto rounded-2xl bg-[#767680]/[0.04] p-3 ring-1 ring-black/[0.04]">
+                <ScriptSections text={preview(kind)} />
               </div>
             ) : (
               <WaPreview text={preview(kind)} />
@@ -156,7 +163,7 @@ export default function ScriptPage() {
         </div>
 
         {kind !== "call" && (
-          <div className="mt-5 rounded-xl border border-slate-200 p-4">
+          <div className="mt-5 rounded-2xl bg-[#767680]/[0.06] p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900">
               <Paperclip size={15} className="text-slate-400" /> Allegati (documenti, video, link)
             </div>
@@ -205,7 +212,7 @@ export default function ScriptPage() {
           </div>
         )}
 
-        <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
+        <div className="mt-5 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-5">
           <span className="text-xs text-slate-500">
             {dirty ? "Modifiche non salvate" : "I dati azienda ({azienda}, {sito}…) si cambiano in Impostazioni."}
           </span>
