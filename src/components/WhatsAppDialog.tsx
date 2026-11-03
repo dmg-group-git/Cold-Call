@@ -70,7 +70,7 @@ export function WhatsAppDialog({
   return (
     <Modal open={open} onClose={onClose} title={title ?? "Inviamo il WhatsApp?"}>
       {!lead.phone ? (
-        <p className="text-sm text-red-600">Questo lead non ha un numero di telefono.</p>
+        <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">Questo lead non ha un numero di telefono.</p>
       ) : (
         <div className="space-y-4">
           <div>
@@ -85,7 +85,7 @@ export function WhatsAppDialog({
               <span className={label}>Materiali da allegare (come link)</span>
               <div className="space-y-1">
                 {materials.map((m) => (
-                  <label key={m.id} className="flex items-center gap-2 text-sm">
+                  <label key={m.id} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                     <input
                       type="checkbox"
                       checked={selected.includes(m.id)}
@@ -108,7 +108,7 @@ export function WhatsAppDialog({
             Si aprirà WhatsApp con il messaggio pronto per {lead.phone}: premi Invia lì. Non inviare troppi messaggi a
             numeri sconosciuti, WhatsApp potrebbe bloccare il numero.
           </p>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
             <button className={btnSecondary} onClick={onClose}>
               Annulla
             </button>

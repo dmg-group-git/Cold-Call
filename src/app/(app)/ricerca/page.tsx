@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import comuniData from "@/data/comuni.json";
 import { createClient } from "@/lib/supabase/client";
-import { Card, PageTitle, btnPrimary, btnSecondary, input, label } from "@/components/ui";
+import { Check, ChevronDown, Globe, Info as InfoIcon, MapPin, Save, Search, Square, Star } from "lucide-react";
+import { Alert, Card, PageTitle, btnPrimary, btnSecondary, input, label, link } from "@/components/ui";
 
 const COMUNI = comuniData as Record<string, string[]>;
 const PROVINCE = Object.keys(COMUNI);
@@ -134,14 +135,14 @@ export default function RicercaPage() {
   return (
     <>
       <PageTitle sub="Cerca su Google le attività comune per comune e salvale nel CRM.">Ricerca lead</PageTitle>
-      <Card className="space-y-4">
+      <Card className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <span className={label}>Tipo di attività</span>
+            <span className={label}>1. Che attività cerchi?</span>
             <input className={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="es. bed and breakfast" />
           </div>
           <div>
-            <span className={label}>Provincia</span>
+            <span className={label}>2. In quale provincia?</span>
             <select className={input} value={provincia} onChange={(e) => setProvincia(e.target.value)}>
               {PROVINCE.map((p) => (
                 <option key={p}>{p}</option>
@@ -149,17 +150,24 @@ export default function RicercaPage() {
             </select>
           </div>
         </div>
-        <details>
-          <summary className="cursor-pointer text-sm text-slate-700">
-            Comuni selezionati: {comuni.length} di {allComuni.length} (clicca per scegliere)
+        <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm">
+            <span className="flex items-center gap-2 text-slate-700">
+              <MapPin size={15} className="text-slate-400" />
+              3. Comuni: <b>{comuni.length}</b> di {allComuni.length} selezionati
+            </span>
+            <span className="flex items-center gap-1 text-xs font-medium text-brand-600">
+              Scegli <ChevronDown size={14} className="transition group-open:rotate-180" />
+            </span>
           </summary>
-          <div className="mt-2 flex gap-3 text-xs">
-            <button className="underline" onClick={() => setComuni(allComuni)}>Tutti</button>
-            <button className="underline" onClick={() => setComuni([])}>Nessuno</button>
+          <div className="border-t border-slate-200 px-4 py-3">
+          <div className="flex gap-2 text-xs">
+            <button className={`${btnSecondary} px-2.5 py-1 text-xs`} onClick={() => setComuni(allComuni)}>Tutti</button>
+            <button className={`${btnSecondary} px-2.5 py-1 text-xs`} onClick={() => setComuni([])}>Nessuno</button>
           </div>
-          <div className="mt-2 grid max-h-64 grid-cols-2 gap-1 overflow-y-auto text-sm md:grid-cols-4">
+          <div className="mt-3 grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto text-sm md:grid-cols-4">
             {allComuni.map((c) => (
-              <label key={c} className="flex items-center gap-1">
+              <label key={c} className="flex cursor-pointer items-center gap-2 text-slate-700">
                 <input
                   type="checkbox"
                   checked={comuni.includes(c)}
@@ -169,43 +177,63 @@ export default function RicercaPage() {
               </label>
             ))}
           </div>
+          </div>
         </details>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <label className="flex items-center gap-2"><input type="checkbox" checked={onlyPhone} onChange={(e) => setOnlyPhone(e.target.checked)} /> Solo con telefono</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={onlyInComune} onChange={(e) => setOnlyInComune(e.target.checked)} /> Solo nel comune cercato</label>
+        <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+          <label className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={onlyPhone} onChange={(e) => setOnlyPhone(e.target.checked)} /> Solo con telefono</label>
+          <label className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={onlyInComune} onChange={(e) => setOnlyInComune(e.target.checked)} /> Solo nel comune cercato</label>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 pt-5">
           {!running ? (
-            <button className={btnPrimary} onClick={search} disabled={!query.trim() || !comuni.length}>Cerca</button>
+            <button className={btnPrimary} onClick={search} disabled={!query.trim() || !comuni.length}>
+              <Search size={16} /> Cerca su Google
+            </button>
           ) : (
-            <button className={btnSecondary} onClick={() => (stopRef.current = true)}>Ferma</button>
+            <button className={btnSecondary} onClick={() => (stopRef.current = true)}>
+              <Square size={14} /> Ferma
+            </button>
           )}
           {running && (
-            <span className="text-sm text-slate-600">
-              {progress.done + 1}/{progress.total}: {progress.current}…
-            </span>
+            <div className="min-w-[200px] flex-1">
+              <div className="mb-1 flex justify-between text-xs text-slate-600">
+                <span>Cerco a <b>{progress.current}</b>…</span>
+                <span className="tabular-nums">{progress.done + 1}/{progress.total}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-brand-500 transition-all"
+                  style={{ width: `${progress.total ? ((progress.done + 1) / progress.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
           )}
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="flex items-start gap-1.5 text-xs text-slate-500">
+          <InfoIcon size={13} className="mt-0.5 shrink-0" />
           Ogni comune costa una o più richieste a Google (c&apos;è una quota gratuita mensile). Ricorda di verificare il
           Registro delle Opposizioni per i numeri di persone fisiche.
         </p>
       </Card>
 
-      {msg && <div className="mt-4 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">{msg}</div>}
+      {msg && (
+        <Alert tone={msg.startsWith("Salvati") ? "success" : msg.startsWith("Errore") ? "error" : "info"} className="mt-4">
+          {msg}
+        </Alert>
+      )}
 
       {results.length > 0 && (
-        <Card className="mt-6 overflow-x-auto p-0">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 p-4">
+        <Card className="mt-6 p-0">
+          <div className="sticky top-[104px] z-10 flex flex-wrap items-center justify-between gap-2 rounded-t-2xl border-b border-slate-200 bg-white/95 p-4 backdrop-blur md:top-0">
             <span className="text-sm text-slate-600">
-              {visible.length} risultati · {selected.size} selezionati
+              <b className="text-slate-900">{visible.length}</b> risultati · <b className="text-slate-900">{selected.size}</b> selezionati
             </span>
             <button className={btnPrimary} onClick={saveSelected} disabled={!selected.size || running}>
-              Salva selezionati nel CRM
+              <Save size={16} /> Salva {selected.size || ""} nel CRM
             </button>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-500">
+            <thead className="bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="p-3">
                   <input
@@ -225,26 +253,49 @@ export default function RicercaPage() {
             </thead>
             <tbody>
               {visible.map((r) => (
-                <tr key={r.place_id} className="border-t border-slate-100">
+                <tr
+                  key={r.place_id}
+                  className={`border-t border-slate-100 ${selected.has(r.place_id) ? "bg-brand-50/40" : ""}`}
+                >
                   <td className="p-3">
                     {r.status === "nuovo" ? (
                       <input type="checkbox" checked={selected.has(r.place_id)} onChange={() => toggle(r.place_id)} />
                     ) : (
-                      <span className="text-xs text-slate-400">già nel CRM</span>
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                        <Check size={11} /> nel CRM
+                      </span>
                     )}
                   </td>
                   <td className="p-3">
-                    <div className="font-medium">{r.name}</div>
+                    <div className="font-medium text-slate-900">{r.name}</div>
                     <div className="text-xs text-slate-500">{r.address}</div>
                   </td>
                   <td className="p-3 text-slate-600">{r.city}</td>
-                  <td className="p-3 text-slate-600">{r.phone ?? "—"}</td>
-                  <td className="p-3 text-slate-600">{r.rating != null ? `★ ${r.rating} (${r.reviews_count})` : "—"}</td>
-                  <td className="p-3">{r.website ? <a className="text-blue-600 underline" href={r.website} target="_blank">sito</a> : "—"}</td>
+                  <td className="whitespace-nowrap p-3 text-slate-600 tabular-nums">{r.phone ?? "—"}</td>
+                  <td className="whitespace-nowrap p-3 text-slate-600">
+                    {r.rating != null ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Star size={13} className="fill-amber-400 text-amber-400" /> {r.rating}{" "}
+                        <span className="text-slate-400">({r.reviews_count})</span>
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {r.website ? (
+                      <a className={`${link} inline-flex items-center gap-1`} href={r.website} target="_blank">
+                        <Globe size={13} /> sito
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </>

@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { btnPrimary, input, label } from "@/components/ui";
+import { Phone } from "lucide-react";
+import { Alert, btnLg, btnPrimary, input, label } from "@/components/ui";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,20 +24,30 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-xl border border-slate-200 bg-white p-6">
-        <h1 className="text-xl font-semibold">Cold Call Dashboard</h1>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 p-4">
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-brand-600/30 blur-3xl" />
+      <form
+        onSubmit={submit}
+        className="animate-pop-in relative w-full max-w-sm space-y-5 rounded-2xl bg-white p-8 shadow-2xl"
+      >
+        <div className="flex flex-col items-center text-center">
+          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-600/30">
+            <Phone size={22} strokeWidth={2.5} />
+          </span>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Cold Call Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">Accedi per iniziare a chiamare</p>
+        </div>
         <div>
           <label className={label}>Email</label>
-          <input className={input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className={input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
         </div>
         <div>
           <label className={label}>Password</label>
           <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button className={`${btnPrimary} w-full`} disabled={busy}>
-          {busy ? "Accesso..." : "Entra"}
+        {error && <Alert tone="error">{error}</Alert>}
+        <button className={`${btnPrimary} ${btnLg} w-full`} disabled={busy}>
+          {busy ? "Accesso…" : "Entra"}
         </button>
       </form>
     </main>

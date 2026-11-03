@@ -10,7 +10,35 @@ import { useAppData } from "@/components/useAppData";
 import { Timeline } from "@/components/Timeline";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { EventDialog } from "@/components/EventDialog";
-import { Card, Modal, btnGreen, btnPrimary, btnRed, btnSecondary, input, label } from "@/components/ui";
+import {
+  ArrowLeft,
+  Ban,
+  CalendarClock,
+  History,
+  ListRestart,
+  MessageCircle,
+  Phone,
+  RefreshCw,
+  Star,
+  Trash2,
+  UserRound,
+  Video,
+} from "lucide-react";
+import {
+  Alert,
+  Avatar,
+  Card,
+  CardTitle,
+  Loading,
+  Modal,
+  StatusBadge,
+  btnGreen,
+  btnPrimary,
+  btnRed,
+  btnSecondary,
+  input,
+  label,
+} from "@/components/ui";
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -48,7 +76,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
     load();
   }, [load]);
 
-  if (!lead) return <p className="text-slate-500">Carico…</p>;
+  if (!lead) return <Loading />;
 
   async function save() {
     const phone = normalizePhone(edit.phone ?? null);
@@ -122,21 +150,48 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <>
-      <Link href="/crm" className="text-sm text-slate-500 hover:underline">← CRM</Link>
-      <div className="mb-6 mt-2 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{lead.name}</h1>
+      <Link href="/crm" className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
+        <ArrowLeft size={15} /> CRM
+      </Link>
+      <div className="mb-6 mt-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar name={lead.name} size="lg" />
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight text-slate-900">{lead.name}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+              <StatusBadge status={lead.status} />
+              {lead.city && <span>{[lead.city, lead.province].filter(Boolean).join(" · ")}</span>}
+              {lead.rating != null && (
+                <span className="inline-flex items-center gap-1">
+                  <Star size={13} className="fill-amber-400 text-amber-400" /> {lead.rating} ({lead.reviews_count})
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
-          {lead.phone && <a className={btnGreen} href={telLink(lead.phone)}>📞 Chiama</a>}
-          <button className={btnSecondary} onClick={() => setWa(true)}>💬 WhatsApp</button>
-          <button className={btnSecondary} onClick={() => setEv("videocall")}>📅 Videocall</button>
-          <button className={btnSecondary} onClick={() => setEv("richiamata")}>⏰ Richiamata</button>
+          {lead.phone && (
+            <a className={btnGreen} href={telLink(lead.phone)}>
+              <Phone size={16} /> Chiama
+            </a>
+          )}
+          <button className={btnSecondary} onClick={() => setWa(true)}>
+            <MessageCircle size={16} /> WhatsApp
+          </button>
+          <button className={btnSecondary} onClick={() => setEv("videocall")}>
+            <Video size={16} /> Videocall
+          </button>
+          <button className={btnSecondary} onClick={() => setEv("richiamata")}>
+            <CalendarClock size={16} /> Richiamata
+          </button>
         </div>
       </div>
-      {isDnc && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">Questo lead è nella lista &quot;non contattare&quot;.</div>}
-      {msg && <div className="mb-4 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">{msg}</div>}
+      {isDnc && <Alert tone="error" className="mb-4">Questo lead è nella lista &quot;non contattare&quot;.</Alert>}
+      {msg && <Alert className="mb-4">{msg}</Alert>}
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="space-y-3 lg:col-span-2">
+        <Card className="space-y-3 self-start lg:col-span-2">
+          <CardTitle icon={UserRound}>Dati del lead</CardTitle>
           <div>
             <span className={label}>Stato</span>
             <select className={input} value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value as LeadStatus })}>
@@ -159,23 +214,34 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
             <span className={label}>Note</span>
             <textarea className={`${input} h-24`} value={edit.notes ?? ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
           </div>
-          {lead.rating != null && <p className="text-sm text-slate-500">Google: ★ {lead.rating} ({lead.reviews_count} recensioni)</p>}
-          {lead.next_action_at && <p className="text-sm text-slate-500">Prossima richiamata: {formatDateTime(lead.next_action_at)}</p>}
+          {lead.next_action_at && (
+            <p className="flex items-center gap-1.5 text-sm text-slate-600">
+              <CalendarClock size={14} className="text-slate-400" /> Prossima richiamata: {formatDateTime(lead.next_action_at)}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 pt-2">
             <button className={btnPrimary} onClick={save}>{saved ? "Salvato ✓" : "Salva"}</button>
-            <button className={btnSecondary} onClick={requeue}>Rimetti in coda</button>
-            {lead.place_id && <button className={btnSecondary} onClick={refreshGoogle}>Aggiorna da Google</button>}
-          </div>
-          <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-3 text-xs">
-            <button className="text-slate-600 underline" onClick={toggleDnc}>
-              {isDnc ? "Togli da \"non contattare\"" : "Aggiungi a \"non contattare\""}
+            <button className={btnSecondary} onClick={requeue}>
+              <ListRestart size={15} /> Rimetti in coda
             </button>
-            <button className="text-red-600 underline" onClick={() => setDelOpen(true)}>Elimina lead</button>
+            {lead.place_id && (
+              <button className={btnSecondary} onClick={refreshGoogle}>
+                <RefreshCw size={15} /> Aggiorna da Google
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-4 border-t border-slate-100 pt-4 text-xs font-medium">
+            <button className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900" onClick={toggleDnc}>
+              <Ban size={13} /> {isDnc ? "Togli da \"non contattare\"" : "Aggiungi a \"non contattare\""}
+            </button>
+            <button className="inline-flex items-center gap-1 text-rose-600 hover:text-rose-700" onClick={() => setDelOpen(true)}>
+              <Trash2 size={13} /> Elimina lead
+            </button>
           </div>
         </Card>
 
         <Card className="lg:col-span-3">
-          <h2 className="mb-3 font-semibold">Storico</h2>
+          <CardTitle icon={History} sub="Chiamate, messaggi, appuntamenti e note">Storico</CardTitle>
           <div className="mb-4 flex gap-2">
             <input className={input} placeholder="Aggiungi una nota…" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} />
             <button className={btnSecondary} onClick={addNote}>Aggiungi</button>
@@ -190,7 +256,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
       {ev && <EventDialog open onClose={() => setEv(null)} onDone={load} lead={lead} kind={ev} settings={settings} />}
       <Modal open={delOpen} onClose={() => setDelOpen(false)} title="Eliminare il lead?">
         <p className="text-sm text-slate-600">Verranno cancellati anche tutto lo storico e le registrazioni collegate.</p>
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2">
           <button className={btnSecondary} onClick={() => setDelOpen(false)}>Annulla</button>
           <button className={btnRed} onClick={remove}>Elimina</button>
         </div>
