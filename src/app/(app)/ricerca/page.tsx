@@ -162,6 +162,7 @@ export default function RicercaPage() {
           <div>
             <span className={label}>1. Che attività cerchi?</span>
             <input className={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="es. bed and breakfast" />
+            <p className="mt-1 text-xs text-slate-500">Puoi scriverne più di una separate da virgola (es. B&amp;B, agriturismo). Cerco anche i sinonimi.</p>
           </div>
           <div>
             <span className={label}>2. Dove?</span>
