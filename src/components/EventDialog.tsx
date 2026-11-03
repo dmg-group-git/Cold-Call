@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import type { Lead, Settings } from "@/lib/types";
 import { romeLocalNow } from "@/lib/utils";
+import { CalendarClock, Video } from "lucide-react";
 import { Modal, btnPrimary, btnSecondary, input, label } from "./ui";
 
 /** Conferma prima di creare un evento su Google Calendar (data e ora modificabili). */
@@ -80,6 +81,7 @@ export function EventDialog({
     <Modal
       open={open}
       onClose={onClose}
+      icon={kind === "videocall" ? Video : CalendarClock}
       title={kind === "videocall" ? `Fissiamo la videocall il ${pretty}?` : `Fissiamo la richiamata il ${pretty}?`}
     >
       <div className="space-y-4">
@@ -109,7 +111,7 @@ export function EventDialog({
           <textarea className={`${input} h-24`} value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <button className={btnSecondary} onClick={onClose}>
             Annulla
           </button>

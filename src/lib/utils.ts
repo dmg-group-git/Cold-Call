@@ -111,3 +111,24 @@ export function openTel(phone: string) {
   a.click();
   a.remove();
 }
+
+/** Numero leggibile a gruppi: +39 333 123 4567 */
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const clean = phone.replace(/\s+/g, "");
+  // prefisso internazionale: +39 per l'Italia, altrimenti due cifre
+  const m = clean.match(/^(\+39|\+\d{2})?(\d+)$/);
+  if (!m) return phone;
+  const [, cc = "", rest] = m;
+  const groups: string[] = [];
+  let r = rest;
+  // prefisso 3 cifre, poi gruppi di 3 e l'ultimo da 4 se avanza
+  groups.push(r.slice(0, 3));
+  r = r.slice(3);
+  while (r.length > 4) {
+    groups.push(r.slice(0, 3));
+    r = r.slice(3);
+  }
+  if (r) groups.push(r);
+  return [cc, ...groups].filter(Boolean).join(" ");
+}

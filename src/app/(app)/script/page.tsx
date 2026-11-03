@@ -6,6 +6,7 @@ import type { Script } from "@/lib/types";
 import { fillTemplate, materialsText, withMaterials } from "@/lib/utils";
 import { MAX_FILE_MB, uploadMaterialFile } from "@/lib/materials";
 import { useAppData } from "@/components/useAppData";
+import { WaPreview } from "@/components/WaPreview";
 import { Alert, Card, Loading, PageTitle, Spinner, btnPrimary, btnSecondary, input, label } from "@/components/ui";
 
 const KIND_LABEL: Record<Script["kind"], string> = {
@@ -144,17 +145,13 @@ export default function ScriptPage() {
             <span className={label}>
               Anteprima <span className="font-normal text-slate-400">(con dati di esempio)</span>
             </span>
-            <div
-              className={`h-80 overflow-y-auto whitespace-pre-wrap rounded-xl p-4 text-sm leading-relaxed ${
-                kind === "call" ? "bg-slate-50 text-slate-800" : "bg-[#e7f7e3] text-slate-800"
-              }`}
-            >
-              {kind === "call" ? (
-                preview(kind)
-              ) : (
-                <div className="ml-auto max-w-[90%] rounded-xl rounded-tr-sm bg-white p-3 shadow-sm">{preview(kind)}</div>
-              )}
-            </div>
+            {kind === "call" ? (
+              <div className="paper h-80 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 py-4 pl-7 pr-4 text-[15px] leading-8 text-slate-800 shadow-inner shadow-slate-200/40">
+                {preview(kind)}
+              </div>
+            ) : (
+              <WaPreview text={preview(kind)} />
+            )}
           </div>
         </div>
 
@@ -221,3 +218,4 @@ export default function ScriptPage() {
     </>
   );
 }
+
