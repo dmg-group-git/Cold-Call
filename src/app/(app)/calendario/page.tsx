@@ -132,11 +132,13 @@ export default function CalendarioPage() {
         .not("status", "in", "(cliente,perso)"),
       // altri impegni del calendario Google
       showGoogle
-        ? fetch(`/api/google/events?${new URLSearchParams({ timeMin: startIso, timeMax: endIso })}`)
+        ? fetch(`/api/google/events?${new URLSearchParams({ timeMin: startIso, timeMax: endIso })}`, {
+            signal: AbortSignal.timeout(15000),
+          })
             .then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }))
             .catch(() => ({ status: 0, json: {} as Record<string, unknown> }))
         : Promise.resolve(null),
-    ]);
+    ]).catch(() => [{ data: [] }, { data: [] }, null] as const);
     if (id !== reqId.current) return;
 
     const list: Appt[] = [];
