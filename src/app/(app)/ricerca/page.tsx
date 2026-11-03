@@ -7,6 +7,12 @@ import { Alert, Card, PageTitle, btnPrimary, btnSecondary, input, label, link } 
 
 const COMUNI = comuniData as Record<string, string[]>;
 const PROVINCE = Object.keys(COMUNI);
+/** Tutti i comuni d'Italia come "Vieste (FG)" -> provincia, per la ricerca su una sola città. */
+const ALL_PLACES = PROVINCE.flatMap((p) => {
+  const sigla = p.match(/\((\w+)\)/)?.[1] ?? "";
+  return COMUNI[p].map((c) => ({ label: `${c} (${sigla})`, comune: c, provincia: p }));
+});
+const PLACE_BY_LABEL = new Map(ALL_PLACES.map((x) => [x.label.toLowerCase(), x]));
 
 interface Result {
   place_id: string;
@@ -26,6 +32,10 @@ export default function RicercaPage() {
   const [query, setQuery] = useState("bed and breakfast");
   const [provincia, setProvincia] = useState(PROVINCE.find((p) => p.startsWith("Foggia")) ?? PROVINCE[0]);
   const [comuni, setComuni] = useState<string[]>([]);
+  const [mode, setMode] = useState<"provincia" | "citta">("provincia");
+  const [cityText, setCityText] = useState("");
+  const [searchProv, setSearchProv] = useState(provincia);
+  const [siteFilter, setSiteFilter] = useState<"tutti" | "con" | "senza">("tutti");
   const [onlyPhone, setOnlyPhone] = useState(true);
   const [onlyInComune, setOnlyInComune] = useState(true);
   const [running, setRunning] = useState(false);
@@ -39,8 +49,13 @@ export default function RicercaPage() {
     setComuni(COMUNI[provincia] ?? []);
   }, [provincia]);
 
+  const city = PLACE_BY_LABEL.get(cityText.trim().toLowerCase()) ?? null;
+  const targetComuni = mode === "citta" ? (city ? [city.comune] : []) : comuni;
+  const targetProv = mode === "citta" ? (city?.provincia ?? "") : provincia;
+
   async function search() {
     setRunning(true);
+    setSearchProv(targetProv);
     setMsg(null);
     setResults([]);
     setSelected(new Set());
@@ -56,13 +71,14 @@ export default function RicercaPage() {
     const dncPhones = new Set((dnc ?? []).map((d) => d.phone));
     const seen = new Set<string>();
     const all: Result[] = [];
-    const sigla = provincia.match(/\((\w+)\)/)?.[1] ?? "";
+    const sigla = targetProv.match(/\((\w+)\)/)?.[1] ?? "";
+    const list = targetComuni;
 
-    setProgress({ done: 0, total: comuni.length, current: "" });
-    for (let i = 0; i < comuni.length; i++) {
+    setProgress({ done: 0, total: list.length, current: "" });
+    for (let i = 0; i < list.length; i++) {
       if (stopRef.current) break;
-      const comune = comuni[i];
-      setProgress({ done: i, total: comuni.length, current: comune });
+      const comune = list[i];
+      setProgress({ done: i, total: list.length, current: comune });
       const res = await fetch("/api/places/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,11 +108,17 @@ export default function RicercaPage() {
   }
 
   const visible = results.filter(
-    (r) => r.status !== "non_contattare" && (!onlyPhone || r.phone) && (!onlyInComune || r.in_comune),
+    (r) =>
+      r.status !== "non_contattare" &&
+      (!onlyPhone || r.phone) &&
+      (!onlyInComune || r.in_comune) &&
+      (siteFilter === "tutti" || (siteFilter === "con" ? !!r.website : !r.website)),
   );
+  const selectedVisible = visible.filter((r) => selected.has(r.place_id)).length;
+  const withSite = results.filter((r) => r.website).length;
 
   async function saveSelected() {
-    const sigla = provincia.match(/\((\w+)\)/)?.[1] ?? provincia;
+    const sigla = searchProv.match(/\((\w+)\)/)?.[1] ?? searchProv;
     const phonesUsed = new Set<string>();
     const rows = visible
       .filter((r) => selected.has(r.place_id) && r.status === "nuovo")
@@ -134,7 +156,7 @@ export default function RicercaPage() {
 
   return (
     <>
-      <PageTitle sub="Cerca su Google le attività comune per comune e salvale nel CRM.">Ricerca lead</PageTitle>
+      <PageTitle sub="Cerca su Google le attività in una provincia o in una sola città e salvale nel CRM.">Ricerca lead</PageTitle>
       <Card className="space-y-5">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -142,14 +164,53 @@ export default function RicercaPage() {
             <input className={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="es. bed and breakfast" />
           </div>
           <div>
-            <span className={label}>2. In quale provincia?</span>
-            <select className={input} value={provincia} onChange={(e) => setProvincia(e.target.value)}>
-              {PROVINCE.map((p) => (
-                <option key={p}>{p}</option>
+            <span className={label}>2. Dove?</span>
+            <div className="mb-2 inline-flex rounded-lg border border-slate-200 p-0.5 text-xs">
+              {(
+                [
+                  ["provincia", "Provincia (più comuni)"],
+                  ["citta", "Una sola città/paese"],
+                ] as const
+              ).map(([m, l]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`rounded-md px-2.5 py-1 ${mode === m ? "bg-slate-900 text-white" : "text-slate-600"}`}
+                >
+                  {l}
+                </button>
               ))}
-            </select>
+            </div>
+            {mode === "provincia" ? (
+              <select className={input} value={provincia} onChange={(e) => setProvincia(e.target.value)}>
+                {PROVINCE.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <input
+                  className={input}
+                  list="lista-comuni"
+                  value={cityText}
+                  onChange={(e) => setCityText(e.target.value)}
+                  placeholder="Scrivi il nome, es. Vieste"
+                />
+                <datalist id="lista-comuni">
+                  {cityText.trim().length >= 2 &&
+                    ALL_PLACES.filter((x) => x.label.toLowerCase().startsWith(cityText.trim().toLowerCase()))
+                      .slice(0, 30)
+                      .map((x) => <option key={x.label} value={x.label} />)}
+                </datalist>
+                {cityText.trim() && !city && (
+                  <p className="mt-1 text-xs text-amber-600">Scegli il comune dall&apos;elenco che compare mentre scrivi.</p>
+                )}
+              </>
+            )}
           </div>
         </div>
+        {mode === "provincia" && (
         <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm">
             <span className="flex items-center gap-2 text-slate-700">
@@ -179,13 +240,14 @@ export default function RicercaPage() {
           </div>
           </div>
         </details>
+        )}
         <div className="flex flex-wrap gap-4 text-sm text-slate-700">
           <label className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={onlyPhone} onChange={(e) => setOnlyPhone(e.target.checked)} /> Solo con telefono</label>
           <label className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={onlyInComune} onChange={(e) => setOnlyInComune(e.target.checked)} /> Solo nel comune cercato</label>
         </div>
         <div className="flex flex-wrap items-center gap-4 border-t border-slate-100 pt-5">
           {!running ? (
-            <button className={btnPrimary} onClick={search} disabled={!query.trim() || !comuni.length}>
+            <button className={btnPrimary} onClick={search} disabled={!query.trim() || !targetComuni.length}>
               <Search size={16} /> Cerca su Google
             </button>
           ) : (
@@ -224,11 +286,31 @@ export default function RicercaPage() {
       {results.length > 0 && (
         <Card className="mt-6 p-0">
           <div className="sticky top-[104px] z-10 flex flex-wrap items-center justify-between gap-2 rounded-t-2xl border-b border-slate-200 bg-white/95 p-4 backdrop-blur md:top-0">
-            <span className="text-sm text-slate-600">
-              <b className="text-slate-900">{visible.length}</b> risultati · <b className="text-slate-900">{selected.size}</b> selezionati
-            </span>
-            <button className={btnPrimary} onClick={saveSelected} disabled={!selected.size || running}>
-              <Save size={16} /> Salva {selected.size || ""} nel CRM
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-slate-600">
+                <b className="text-slate-900">{visible.length}</b> risultati · <b className="text-slate-900">{selectedVisible}</b> selezionati
+              </span>
+              <div className="inline-flex rounded-lg border border-slate-200 p-0.5 text-xs">
+                {(
+                  [
+                    ["tutti", `Tutti (${results.length})`],
+                    ["con", `Con sito (${withSite})`],
+                    ["senza", `Senza sito (${results.length - withSite})`],
+                  ] as const
+                ).map(([f, l]) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setSiteFilter(f)}
+                    className={`rounded-md px-2.5 py-1 ${siteFilter === f ? "bg-slate-900 text-white" : "text-slate-600"}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button className={btnPrimary} onClick={saveSelected} disabled={!selectedVisible || running}>
+              <Save size={16} /> Salva {selectedVisible || ""} nel CRM
             </button>
           </div>
           <div className="overflow-x-auto">
@@ -238,9 +320,16 @@ export default function RicercaPage() {
                 <th className="p-3">
                   <input
                     type="checkbox"
-                    checked={visible.filter((r) => r.status === "nuovo").every((r) => selected.has(r.place_id))}
+                    checked={visible.some((r) => r.status === "nuovo") && visible.filter((r) => r.status === "nuovo").every((r) => selected.has(r.place_id))}
                     onChange={(e) =>
-                      setSelected(new Set(e.target.checked ? visible.filter((r) => r.status === "nuovo").map((r) => r.place_id) : []))
+                      setSelected((prev) => {
+                        const n = new Set(prev);
+                        for (const r of visible.filter((x) => x.status === "nuovo")) {
+                          if (e.target.checked) n.add(r.place_id);
+                          else n.delete(r.place_id);
+                        }
+                        return n;
+                      })
                     }
                   />
                 </th>
