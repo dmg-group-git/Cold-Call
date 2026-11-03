@@ -1,4 +1,8 @@
 "use client";
+import { RecallsToday } from "@/components/RecallsToday";
+import { PriorityBadge } from "@/components/PriorityBadge";
+import { CallCoaching } from "@/components/CallCoaching";
+import { leadPriority } from "@/lib/priority";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -124,11 +128,23 @@ export default function ChiamatePage() {
         .or(`and(status.eq.nuovo,next_action_at.is.null),next_action_at.lte.${now}`)
         .order("next_action_at", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true })
-        .limit(200),
+        .limit(1000),
       supabase.from("do_not_contact").select("phone"),
     ]);
     const blocked = new Set((dnc ?? []).map((d) => d.phone));
-    const list = ((leads as Lead[]) ?? []).filter((l) => !blocked.has(l.phone!) && !skipped.current.has(l.id));
+    const nowMs = Date.now();
+    const isDue = (l: Lead) => !!l.next_action_at && new Date(l.next_action_at).getTime() <= nowMs;
+    // prima le richiamate scadute (in ordine di ora), poi i lead nuovi dal più promettente
+    const list = ((leads as Lead[]) ?? [])
+      .filter((l) => !blocked.has(l.phone!) && !skipped.current.has(l.id))
+      .sort((a, b) => {
+        const da = isDue(a), db = isDue(b);
+        if (da !== db) return da ? -1 : 1;
+        if (da && db) return new Date(a.next_action_at!).getTime() - new Date(b.next_action_at!).getTime();
+        const pa = leadPriority(a).score, pb = leadPriority(b).score;
+        if (pa !== pb) return pb - pa;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
     setQueueCount(list.length);
     setLead(list[0] ?? null);
     setPhase("ready");
@@ -145,6 +161,15 @@ export default function ChiamatePage() {
   useEffect(() => {
     loadNext();
   }, [loadNext]);
+
+  /** Dalla lista "Richiamate di oggi": porta subito quel lead in primo piano. */
+  function pickLead(l: Lead) {
+    if (phase !== "ready") return;
+    setLead(l);
+    setError(null);
+    setNotes("");
+    setDone({});
+  }
 
   async function startCall() {
     if (!lead?.phone) return;
@@ -352,6 +377,7 @@ export default function ChiamatePage() {
     return (
       <>
         <PageTitle>Chiamate</PageTitle>
+        <RecallsToday canPick onPick={pickLead} />
         <Card>
           <EmptyState
             icon={PartyPopper}
@@ -404,6 +430,7 @@ export default function ChiamatePage() {
         >
           Chiamate
         </PageTitle>
+        <RecallsToday currentId={lead.id} canPick={phase === "ready"} onPick={pickLead} />
       </div>
 
       <div className={`grid gap-6 lg:grid-cols-5 ${focus ? "mx-auto max-w-5xl pt-6" : ""}`}>
@@ -416,6 +443,7 @@ export default function ChiamatePage() {
               <h2 className="mt-3 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">{lead.name}</h2>
               <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2 text-[13px] text-slate-500">
                 <StatusBadge status={lead.status} />
+                <PriorityBadge lead={lead} />
                 {(lead.city || lead.province) && (
                   <span className="flex items-center gap-1">
                     <MapPin size={12} /> {[lead.city, lead.province].filter(Boolean).join(" · ")}
@@ -637,6 +665,7 @@ export default function ChiamatePage() {
                   )}
                 </div>
               )}
+              {analysis && <CallCoaching consigli={analysis.consigli} />}
 
               <div>
                 <span className={label}>

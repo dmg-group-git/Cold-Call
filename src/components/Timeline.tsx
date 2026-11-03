@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Interaction } from "@/lib/types";
+import type { Analysis, Interaction } from "@/lib/types";
 import { OUTCOMES } from "@/lib/types";
 import { formatDateTime, formatDuration } from "@/lib/utils";
 import { CalendarDays, ChevronDown, MessageCircle, Phone, StickyNote, type LucideIcon } from "lucide-react";
 import { Collapse, IconTile, type Tone } from "./ui";
+import { CallCoaching } from "./CallCoaching";
 
 const ICON: Record<string, { icon: LucideIcon; tone: Tone; label: string }> = {
   call: { icon: Phone, tone: "green", label: "Chiamata" },
@@ -36,7 +37,10 @@ function TimelineItem({ it, first }: { it: Interaction; first: boolean }) {
   const outcome = OUTCOMES.find((o) => o.value === it.outcome)?.label;
   const d = (it.data ?? {}) as Record<string, string>;
   const ic = ICON[it.type] ?? ICON.note;
+  const consigli = ((it.data ?? {}) as { analysis?: Analysis }).analysis?.consigli;
+  const hasConsigli = !!(consigli && (consigli.bene?.length || consigli.migliorare?.length));
   const hasMore =
+    hasConsigli ||
     !!it.objections?.length ||
     !!it.next_step ||
     !!it.transcript ||
@@ -93,6 +97,7 @@ function TimelineItem({ it, first }: { it: Interaction; first: boolean }) {
                 <b className="font-medium text-[#1d1d1f]">Prossimo passo:</b> {it.next_step}
               </p>
             )}
+            {hasConsigli && <CallCoaching consigli={consigli} />}
             {it.type === "event" && d.meetLink && (
               <a className="block font-medium text-[#007aff] hover:underline" href={d.meetLink} target="_blank">
                 Link Google Meet

@@ -105,4 +105,6 @@ export interface Analysis {
   data_appuntamento: string | null; // "YYYY-MM-DDTHH:mm" ora italiana
   nome_referente: string | null;
   email_lead: string | null;
+  /** consigli al commerciale (assente nelle analisi vecchie) */
+  consigli?: { bene: string[]; migliorare: string[] };
 }

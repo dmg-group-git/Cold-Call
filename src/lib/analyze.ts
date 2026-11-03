@@ -12,6 +12,10 @@ const AnalysisSchema = z.object({
   data_appuntamento: z.string().nullable(),
   nome_referente: z.string().nullable(),
   email_lead: z.string().nullable(),
+  consigli: z.object({
+    bene: z.array(z.string()),
+    migliorare: z.array(z.string()),
+  }),
 });
 
 const SYSTEM = `Analizzi trascrizioni di chiamate commerciali a freddo in italiano, fatte da un commerciale a strutture ricettive o attività locali.
@@ -25,7 +29,11 @@ Restituisci:
 - tipo_appuntamento: "videocall" se è stata concordata una videochiamata/demo, "richiamata" se è stato concordato quando richiamare, altrimenti "nessuno".
 - data_appuntamento: data e ora concordate nel formato "YYYY-MM-DDTHH:mm" (ora italiana), risolvendo espressioni come "giovedì alle 10" rispetto alla data di oggi indicata. Se c'è solo il giorno senza ora, usa le 10:00. null se non concordata.
 - nome_referente: nome della persona con cui si è parlato, se detto, altrimenti null.
-- email_lead: email del cliente se dettata, altrimenti null.`;
+- email_lead: email del cliente se dettata, altrimenti null.
+- consigli: sei anche un coach di vendita. Dai consigli al COMMERCIALE (non al cliente), in italiano semplice e diretto, dandogli del tu.
+  - bene: 1-3 cose concrete che ha fatto bene in questa chiamata.
+  - migliorare: 1-3 cose concrete da fare diversamente la prossima volta. Per ognuna, se utile, suggerisci la frase esatta da dire tra virgolette (es. come rispondere a un'obiezione, come chiedere l'appuntamento).
+  Se la chiamata non è avvenuta o è troppo breve per giudicare, lascia entrambe le liste vuote.`;
 
 export async function analyzeTranscript(transcript: string, leadName: string): Promise<Analysis> {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("Manca la chiave ANTHROPIC_API_KEY");
@@ -50,6 +58,7 @@ export async function analyzeTranscript(transcript: string, leadName: string): P
       data_appuntamento: null,
       nome_referente: null,
       email_lead: null,
+      consigli: { bene: [], migliorare: [] },
     };
   }
 

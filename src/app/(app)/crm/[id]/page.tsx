@@ -1,5 +1,6 @@
 "use client";
 import { PhoneKind } from "@/components/PhoneKind";
+import { PriorityBadge } from "@/components/PriorityBadge";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -166,6 +167,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
               <StatusBadge status={lead.status} />
               {lead.city && <span>{[lead.city, lead.province].filter(Boolean).join(" · ")}</span>}
               <PhoneKind phone={lead.phone} />
+              <PriorityBadge lead={lead} showReasons={false} />
               {lead.rating != null && (
                 <span className="inline-flex items-center gap-1">
                   <Star size={13} className="fill-amber-400 text-amber-400" /> {lead.rating} ({lead.reviews_count})
