@@ -69,6 +69,8 @@ export interface Script {
   kind: "call" | "wa_no_answer" | "wa_answered";
   title: string;
   body: string;
+  /** Materiali allegati di default a questo script WhatsApp. */
+  material_ids: string[] | null;
   updated_at: string;
 }
 
@@ -76,7 +78,7 @@ export interface Material {
   id: string;
   created_at: string;
   title: string;
-  kind: "pdf" | "video" | "link";
+  kind: "pdf" | "video" | "link" | "file";
   url: string;
   storage_path: string | null;
 }

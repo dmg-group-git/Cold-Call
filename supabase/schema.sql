@@ -159,3 +159,10 @@ Contatti: {riferimenti}
 A presto,
 {mio_nome}'
 where not exists (select 1 from public.scripts where kind = 'wa_answered');
+
+-- ---------------------------------------------------------
+-- AGGIORNAMENTO 2026-11-03: allegati negli script WhatsApp
+-- ---------------------------------------------------------
+alter table public.scripts add column if not exists material_ids uuid[] not null default '{}';
+alter table public.materials drop constraint if exists materials_kind_check;
+alter table public.materials add constraint materials_kind_check check (kind in ('pdf','video','link','file'));

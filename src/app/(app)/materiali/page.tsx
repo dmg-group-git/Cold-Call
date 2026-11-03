@@ -3,6 +3,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Material } from "@/lib/types";
 import { useAppData } from "@/components/useAppData";
+import { MAX_FILE_MB, uploadMaterialFile } from "@/lib/materials";
 import { Card, PageTitle, btnPrimary, input, label } from "@/components/ui";
 
 export default function MaterialiPage() {
@@ -18,29 +19,21 @@ export default function MaterialiPage() {
     setError(null);
     setBusy(true);
     const supabase = createClient();
-    let finalUrl = url.trim();
-    let storage_path: string | null = null;
-    if (kind === "pdf") {
-      if (!file) {
-        setBusy(false);
-        return setError("Scegli un file PDF");
+    try {
+      if (kind === "file") {
+        if (!file) throw new Error("Scegli un file");
+        await uploadMaterialFile(supabase, file, title);
+      } else {
+        const finalUrl = url.trim();
+        if (!finalUrl) throw new Error("Inserisci il link");
+        const { error: insErr } = await supabase.from("materials").insert({ title: title.trim(), kind, url: finalUrl });
+        if (insErr) throw new Error(insErr.message);
       }
-      const safe = file.name.replace(/[^\w.-]+/g, "_");
-      storage_path = `${Date.now()}-${safe}`;
-      const { error: upErr } = await supabase.storage.from("materials").upload(storage_path, file, { contentType: file.type });
-      if (upErr) {
-        setBusy(false);
-        return setError(upErr.message);
-      }
-      finalUrl = supabase.storage.from("materials").getPublicUrl(storage_path).data.publicUrl;
-    }
-    if (!finalUrl) {
+    } catch (e) {
       setBusy(false);
-      return setError("Inserisci il link");
+      return setError(e instanceof Error ? e.message : String(e));
     }
-    const { error: insErr } = await supabase.from("materials").insert({ title: title.trim(), kind, url: finalUrl, storage_path });
     setBusy(false);
-    if (insErr) return setError(insErr.message);
     setTitle("");
     setUrl("");
     setFile(null);
@@ -65,7 +58,7 @@ export default function MaterialiPage() {
             <span className={label}>Tipo</span>
             <select className={input} value={kind} onChange={(e) => setKind(e.target.value as Material["kind"])}>
               <option value="video">Video (link)</option>
-              <option value="pdf">PDF (carica file)</option>
+              <option value="file">Documento o video (carica file)</option>
               <option value="link">Link utile</option>
             </select>
           </div>
@@ -74,10 +67,10 @@ export default function MaterialiPage() {
             <input className={input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="es. Video demo" />
           </div>
           <div>
-            {kind === "pdf" ? (
+            {kind === "file" ? (
               <>
-                <span className={label}>File PDF</span>
-                <input type="file" accept="application/pdf" className="text-sm" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                <span className={label}>File (max {MAX_FILE_MB} MB)</span>
+                <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,video/*,application/pdf" className="text-sm" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               </>
             ) : (
               <>
@@ -91,7 +84,7 @@ export default function MaterialiPage() {
         <button className={btnPrimary} onClick={add} disabled={busy || !title.trim()}>
           {busy ? "Salvo…" : "Aggiungi"}
         </button>
-        {kind === "pdf" && <p className="text-xs text-slate-500">Attenzione: chi ha il link del PDF può aprirlo (serve per mandarlo via WhatsApp).</p>}
+        {kind === "file" && <p className="text-xs text-slate-500">Attenzione: chi ha il link del file può aprirlo (serve per mandarlo via WhatsApp).</p>}
       </Card>
 
       <Card className="mt-6">

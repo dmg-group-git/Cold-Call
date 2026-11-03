@@ -51,6 +51,12 @@ export function materialsText(materials: Material[]): string {
   return materials.map((m) => `• ${m.title}: ${m.url}`).join("\n");
 }
 
+/** Se il testo non contiene {materiali}, aggiunge i link dei materiali in fondo. */
+export function withMaterials(filled: string, body: string, materials: Material[]): string {
+  if (!materials.length || /\{materiali\}/i.test(body)) return filled;
+  return `${filled.trimEnd()}\n\n${materialsText(materials)}`;
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "";
   return new Date(iso).toLocaleString("it-IT", {

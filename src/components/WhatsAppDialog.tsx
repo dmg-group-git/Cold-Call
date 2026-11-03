@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, Material, Script, Settings } from "@/lib/types";
-import { fillTemplate, materialsText, waLink } from "@/lib/utils";
+import { fillTemplate, materialsText, waLink, withMaterials } from "@/lib/utils";
 import { Modal, btnGreen, btnSecondary, input, label } from "./ui";
 
 /**
@@ -37,14 +37,20 @@ export function WhatsAppDialog({
   useEffect(() => {
     if (!open) return;
     setTemplate(kind);
-    setSelected(kind === "wa_answered" ? materials.map((m) => m.id) : []);
-  }, [open, kind, materials]);
+  }, [open, kind]);
+
+  // allegati predefiniti dello script scelto (impostati nella pagina Script)
+  useEffect(() => {
+    if (!open) return;
+    const ids = scripts.find((s) => s.kind === template)?.material_ids ?? [];
+    setSelected(ids.filter((id) => materials.some((m) => m.id === id)));
+  }, [open, template, scripts, materials]);
 
   useEffect(() => {
     if (!open) return;
     const body = scripts.find((s) => s.kind === template)?.body ?? "";
     const mats = materials.filter((m) => selected.includes(m.id));
-    setText(fillTemplate(body, lead, settings, { materiali: materialsText(mats) }));
+    setText(withMaterials(fillTemplate(body, lead, settings, { materiali: materialsText(mats) }), body, mats));
   }, [open, template, selected, scripts, materials, lead, settings]);
 
   async function confirm() {
@@ -91,7 +97,7 @@ export function WhatsAppDialog({
                   </label>
                 ))}
               </div>
-              <p className="mt-1 text-xs text-slate-500">Nel testo i materiali compaiono al posto di {"{materiali}"}.</p>
+              <p className="mt-1 text-xs text-slate-500">Partono come link nel messaggio (al posto di {"{materiali}"} o in fondo).</p>
             </div>
           )}
           <div>
