@@ -8,7 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Analysis, Lead, Outcome } from "@/lib/types";
 import { OUTCOMES } from "@/lib/types";
-import { fillTemplate, formatDateTime, formatDuration, formatPhone, openTel, prettyLocal, telLink } from "@/lib/utils";
+import { fillTemplate, formatDateTime, formatDuration, formatPhone, openTel, prettyLocal, siteUrl, telLink } from "@/lib/utils";
 import { useAppData } from "@/components/useAppData";
 import { useRecorder } from "@/components/useRecorder";
 import { LevelMeter } from "@/components/LevelMeter";
@@ -26,6 +26,7 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  Globe,
   MapPin,
   Maximize2,
   MessageCircle,
@@ -456,6 +457,16 @@ export default function ChiamatePage() {
               >
                 {formatPhone(lead.phone)}
               </a>
+              {lead.website && (
+                <a
+                  href={siteUrl(lead.website)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${btnSecondary} mt-3 px-4 py-1.5 text-[13px]`}
+                >
+                  <Globe size={14} /> Apri sito <ExternalLink size={12} className="opacity-60" />
+                </a>
+              )}
             </div>
 
             {/* DETTAGLI A TENDINA */}
@@ -485,7 +496,7 @@ export default function ChiamatePage() {
                     {lead.contact_person && <Info label="Referente">{lead.contact_person}</Info>}
                     {lead.website && (
                       <Info label="Sito">
-                        <a className={link} href={lead.website} target="_blank">
+                        <a className={link} href={siteUrl(lead.website)} target="_blank" rel="noopener noreferrer">
                           {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "").slice(0, 36)}
                         </a>
                       </Info>

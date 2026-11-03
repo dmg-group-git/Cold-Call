@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Interaction, Lead, LeadStatus } from "@/lib/types";
 import { STATUSES } from "@/lib/types";
-import { formatDateTime, formatPhone, normalizePhone, telLink } from "@/lib/utils";
+import { formatDateTime, formatPhone, normalizePhone, siteUrl, telLink } from "@/lib/utils";
 import { useAppData } from "@/components/useAppData";
 import { Timeline } from "@/components/Timeline";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
@@ -16,6 +16,8 @@ import {
   ArrowLeft,
   Ban,
   CalendarClock,
+  ExternalLink,
+  Globe,
   History,
   ListRestart,
   MessageCircle,
@@ -180,6 +182,11 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
           {lead.phone && (
             <a className={btnGreen} href={telLink(lead.phone)}>
               <Phone size={16} /> Chiama
+            </a>
+          )}
+          {lead.website && (
+            <a className={btnSecondary} href={siteUrl(lead.website)} target="_blank" rel="noopener noreferrer">
+              <Globe size={16} /> Apri sito <ExternalLink size={13} className="opacity-60" />
             </a>
           )}
           <button className={btnSecondary} onClick={() => setWa(true)}>
