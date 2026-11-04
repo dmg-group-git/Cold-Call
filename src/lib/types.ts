@@ -108,3 +108,17 @@ export interface Analysis {
   /** consigli al commerciale (assente nelle analisi vecchie) */
   consigli?: { bene: string[]; migliorare: string[] };
 }
+
+export interface Objection {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  text: string;
+  answer: string;
+  /** true = risposta scritta o corretta a mano: Claude non la cambia */
+  answer_manual: boolean;
+  aliases: string[];
+  /** chiamate in cui è uscita: la lunghezza è il numero di volte */
+  interaction_ids: string[];
+  last_seen_at: string | null;
+}

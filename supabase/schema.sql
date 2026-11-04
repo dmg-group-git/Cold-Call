@@ -228,3 +228,26 @@ create trigger leads_history after insert or update or delete on public.leads
 insert into public.lead_history (lead_id, added_at, name, phone, place_id, city, category, status)
 select id, created_at, name, phone, place_id, city, category, status from public.leads
 on conflict (lead_id) do nothing;
+
+-- ---------------------------------------------------------
+-- AGGIORNAMENTO 2026-11-04: obiezioni e risposte
+-- Si riempie da sola con le obiezioni trovate da Claude nelle chiamate.
+-- Le obiezioni simili vengono unite e contate.
+-- ---------------------------------------------------------
+create table if not exists public.objections (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  text text not null,                       -- l'obiezione, scritta in modo chiaro
+  answer text not null default '',          -- la risposta consigliata
+  answer_manual boolean not null default false, -- true = scritta/corretta da te, Claude non la tocca
+  aliases text[] not null default '{}',     -- frasi simili sentite nelle chiamate
+  interaction_ids uuid[] not null default '{}', -- chiamate in cui è uscita (il numero = quante volte)
+  last_seen_at timestamptz
+);
+alter table public.objections enable row level security;
+drop policy if exists "auth_all" on public.objections;
+create policy "auth_all" on public.objections for all to authenticated using (true) with check (true);
+
+-- segna le chiamate già lette per le obiezioni
+alter table public.interactions add column if not exists objections_synced_at timestamptz;
