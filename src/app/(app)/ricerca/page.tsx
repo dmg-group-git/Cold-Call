@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   Globe,
+  History,
   Info as InfoIcon,
   MapPin,
   Play,
@@ -24,6 +25,7 @@ import {
   CollapsibleCard,
   IconTile,
   PageTitle,
+  StatusBadge,
   Toggle,
   btnPrimary,
   btnSecondary,
@@ -34,6 +36,8 @@ import {
 } from "@/components/ui";
 import { PhoneKind } from "@/components/PhoneKind";
 import { formatDateTime, phoneKind } from "@/lib/utils";
+import Link from "next/link";
+import type { LeadStatus } from "@/lib/types";
 
 const COMUNI = comuniData as Record<string, string[]>;
 const PROVINCE = Object.keys(COMUNI);
@@ -58,7 +62,8 @@ interface Result {
   city: string;
   in_comune: boolean;
   distance_km?: number | null;
-  status?: "nuovo" | "gia_presente" | "non_contattare";
+  /** gia_passato = era nel CRM ma è stato eliminato (resta nello storico) */
+  status?: "nuovo" | "gia_presente" | "gia_passato" | "non_contattare";
   /** true se una ricerca salvata non l'aveva ancora trovato */
   novita?: boolean;
 }
@@ -72,6 +77,20 @@ interface SearchParams {
   cityText: string;
   radiusKm: number;
   synonyms: boolean;
+}
+
+/** Un lead passato nel CRM (resta anche se poi viene eliminato). */
+interface HistoryRow {
+  id: string;
+  lead_id: string | null;
+  added_at: string;
+  name: string | null;
+  phone: string | null;
+  place_id: string | null;
+  city: string | null;
+  category: string | null;
+  status: LeadStatus | null;
+  deleted_at: string | null;
 }
 
 interface SavedSearch {
@@ -112,6 +131,8 @@ export default function RicercaPage() {
   const [saved, setSaved] = useState<SavedSearch[]>([]);
   const [activeSaved, setActiveSaved] = useState<SavedSearch | null>(null);
   const [saveName, setSaveName] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyMissing, setHistoryMissing] = useState(false);
   const stopRef = useRef(false);
   const skipComuniReset = useRef(false);
 
@@ -128,9 +149,20 @@ export default function RicercaPage() {
     setSaved((data as SavedSearch[]) ?? []);
   }, [supabase]);
 
+  const loadHistory = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("lead_history")
+      .select("*")
+      .order("added_at", { ascending: false })
+      .limit(5000);
+    setHistoryMissing(!!error);
+    setHistory((data as HistoryRow[]) ?? []);
+  }, [supabase]);
+
   useEffect(() => {
     loadSaved();
-  }, [loadSaved]);
+    loadHistory();
+  }, [loadSaved, loadHistory]);
 
   const city = PLACE_BY_LABEL.get(cityText.trim().toLowerCase()) ?? null;
   const canSearch = !!query.trim() && (mode === "provincia" ? comuni.length > 0 : !!city);
@@ -153,12 +185,16 @@ export default function RicercaPage() {
     stopRef.current = false;
 
     // lead già presenti e lista "non contattare"
-    const [{ data: existing }, { data: dnc }] = await Promise.all([
+    // lead già presenti, lead passati e poi eliminati (storico) e lista "non contattare"
+    const [{ data: existing }, { data: dnc }, { data: past }] = await Promise.all([
       supabase.from("leads").select("phone, place_id"),
       supabase.from("do_not_contact").select("phone"),
+      supabase.from("lead_history").select("phone, place_id").not("deleted_at", "is", null),
     ]);
     const exPhones = new Set((existing ?? []).map((e) => e.phone).filter(Boolean));
     const exPlaces = new Set((existing ?? []).map((e) => e.place_id).filter(Boolean));
+    const pastPhones = new Set((past ?? []).map((e) => e.phone).filter(Boolean));
+    const pastPlaces = new Set((past ?? []).map((e) => e.place_id).filter(Boolean));
     const dncPhones = new Set((dnc ?? []).map((d) => d.phone));
     const seenBefore = new Set(fromSaved?.seen_ids ?? []);
     const seen = new Set<string>();
@@ -216,7 +252,9 @@ export default function RicercaPage() {
             ? "non_contattare"
             : exPlaces.has(r.place_id) || (r.phone && exPhones.has(r.phone))
               ? "gia_presente"
-              : "nuovo";
+              : pastPlaces.has(r.place_id) || (r.phone && pastPhones.has(r.phone))
+                ? "gia_passato"
+                : "nuovo";
         r.novita = !!fromSaved && !seenBefore.has(r.place_id);
         all.push(r);
       }
@@ -332,6 +370,7 @@ export default function RicercaPage() {
     setMsg(`Salvati ${rows.length} lead nel CRM. Li trovi in coda nella pagina Chiamate.`);
     setResults((rs) => rs.map((r) => (selected.has(r.place_id) ? { ...r, status: "gia_presente" } : r)));
     setSelected(new Set());
+    loadHistory();
   }
 
   function toggle(id: string) {
@@ -640,7 +679,7 @@ export default function RicercaPage() {
               <Toggle
                 checked={onlyNew}
                 onChange={setOnlyNew}
-                label={activeSaved ? "Solo novità" : "Nascondi già nel CRM"}
+                label={activeSaved ? "Solo novità" : "Nascondi già nel CRM o già passati"}
                 hint={activeSaved ? "Non viste l'ultima volta e non nel CRM" : undefined}
               />
             </div>
@@ -681,6 +720,13 @@ export default function RicercaPage() {
                     <td className="p-3">
                       {r.status === "nuovo" ? (
                         <input type="checkbox" checked={selected.has(r.place_id)} onChange={() => toggle(r.place_id)} />
+                      ) : r.status === "gia_passato" ? (
+                        <span
+                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700"
+                          title="Era nel CRM ed è stato eliminato. Lo trovi nello storico in fondo alla pagina."
+                        >
+                          <History size={11} /> già passato
+                        </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                           <Check size={11} /> nel CRM
@@ -732,6 +778,123 @@ export default function RicercaPage() {
           </div>
         </Card>
       )}
+
+      <LeadHistory
+        rows={history}
+        missing={historyMissing}
+        onForget={async (h) => {
+          await supabase.from("lead_history").delete().eq("id", h.id);
+          loadHistory();
+        }}
+      />
     </>
+  );
+}
+
+/** Storico di tutti i lead passati nel CRM, anche quelli eliminati dopo. */
+function LeadHistory({
+  rows,
+  missing,
+  onForget,
+}: {
+  rows: HistoryRow[];
+  missing: boolean;
+  onForget: (h: HistoryRow) => void;
+}) {
+  const [open, setOpen] = usePersistentOpen("lead-history", false);
+  const [filter, setFilter] = useState<"tutti" | "crm" | "eliminati">("tutti");
+  const [q, setQ] = useState("");
+  const [shown, setShown] = useState(50);
+  const deleted = rows.filter((r) => r.deleted_at).length;
+  const list = rows.filter(
+    (r) =>
+      (filter === "tutti" || (filter === "crm" ? !r.deleted_at : !!r.deleted_at)) &&
+      (!q.trim() || [r.name, r.city, r.phone, r.category].some((v) => v?.toLowerCase().includes(q.trim().toLowerCase()))),
+  );
+  const seg = (active: boolean) =>
+    `rounded-[8px] px-2.5 py-1.5 font-medium transition-all duration-200 ${active ? "bg-white text-[#1d1d1f] shadow-[0_3px_8px_rgba(0,0,0,0.12)]" : "text-slate-600 hover:text-[#1d1d1f]"}`;
+
+  return (
+    <CollapsibleCard
+      className="mt-6"
+      icon={History}
+      tone="gray"
+      title="Storico lead passati nel CRM"
+      sub="Chi è qui non ti viene riproposto nelle ricerche, anche se l'hai eliminato dal CRM."
+      summary={missing ? "Da attivare" : `${rows.length} lead · ${deleted} eliminati dal CRM`}
+      open={open}
+      onToggle={setOpen}
+    >
+      {missing ? (
+        <Alert tone="info">Lo storico non è ancora attivo: serve un piccolo aggiornamento del database.</Alert>
+      ) : !rows.length ? (
+        <p className="text-sm text-slate-500">Ancora vuoto. Quando salvi dei lead nel CRM li ritrovi qui.</p>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+            <div className="inline-flex gap-0.5 rounded-[10px] bg-[#767680]/[0.12] p-0.5">
+              {(
+                [
+                  ["tutti", `Tutti (${rows.length})`],
+                  ["crm", `Nel CRM (${rows.length - deleted})`],
+                  ["eliminati", `Eliminati (${deleted})`],
+                ] as const
+              ).map(([f, l]) => (
+                <button key={f} type="button" onClick={() => setFilter(f)} className={seg(filter === f)}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="relative w-full max-w-xs">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input className={`${input} py-1.5 pl-8 text-sm`} placeholder="Cerca nome, città, telefono…" value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+          </div>
+          <ul className="divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-[#767680]/[0.06] px-4">
+            {list.slice(0, shown).map((h) => (
+              <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                <div className="min-w-0">
+                  {h.deleted_at || !h.lead_id ? (
+                    <div className="truncate font-medium text-slate-500">{h.name ?? "—"}</div>
+                  ) : (
+                    <Link className="truncate font-medium text-slate-900 hover:text-brand-700" href={`/crm/${h.lead_id}`}>
+                      {h.name ?? "—"}
+                    </Link>
+                  )}
+                  <div className="text-xs text-slate-500">
+                    {[h.city, h.category, h.phone].filter(Boolean).join(" · ")}
+                    {" · "}nel CRM dal {formatDateTime(h.added_at)}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {h.deleted_at ? (
+                    <>
+                      <span className="whitespace-nowrap rounded-full bg-rose-500/10 px-2 py-0.5 text-xs text-rose-700">
+                        Eliminato il {formatDateTime(h.deleted_at)}
+                      </span>
+                      <button
+                        className="p-1.5 text-slate-400 hover:text-rose-600"
+                        title="Togli dallo storico: le ricerche potranno riproporlo"
+                        onClick={() => onForget(h)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    h.status && <StatusBadge status={h.status} />
+                  )}
+                </div>
+              </li>
+            ))}
+            {!list.length && <li className="py-3 text-sm text-slate-500">Nessun lead trovato.</li>}
+          </ul>
+          {list.length > shown && (
+            <button className={`${btnSecondary} mt-3 px-3 py-1.5 text-xs`} onClick={() => setShown((n) => n + 100)}>
+              Mostra altri ({list.length - shown})
+            </button>
+          )}
+        </>
+      )}
+    </CollapsibleCard>
   );
 }

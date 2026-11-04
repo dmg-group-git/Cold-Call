@@ -9,6 +9,7 @@ import type { Interaction, Lead, LeadStatus } from "@/lib/types";
 import { STATUSES } from "@/lib/types";
 import { formatDateTime, formatPhone, normalizePhone, siteUrl, telLink } from "@/lib/utils";
 import { useAppData } from "@/components/useAppData";
+import { deleteLeads } from "@/lib/leads";
 import { Timeline } from "@/components/Timeline";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { EventDialog } from "@/components/EventDialog";
@@ -142,9 +143,11 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
   }
 
   async function remove() {
-    const paths = items.filter((i) => i.recording_path && !i.recording_deleted).map((i) => i.recording_path!);
-    if (paths.length) await supabase.storage.from("recordings").remove(paths);
-    await supabase.from("leads").delete().eq("id", id);
+    const error = await deleteLeads(supabase, [id]);
+    if (error) {
+      setDelOpen(false);
+      return setMsg("Errore nell'eliminazione: " + error.message);
+    }
     router.replace("/crm");
   }
 
@@ -278,7 +281,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
       )}
       {ev && <EventDialog open onClose={() => setEv(null)} onDone={load} lead={lead} kind={ev} settings={settings} />}
       <Modal open={delOpen} onClose={() => setDelOpen(false)} title="Eliminare il lead?">
-        <p className="text-sm text-slate-600">Verranno cancellati anche tutto lo storico e le registrazioni collegate.</p>
+        <p className="text-sm text-slate-600">Verranno cancellate anche le chiamate, le note e le registrazioni collegate. Il lead resterà nello storico della Ricerca lead, così non te lo riproporrà.</p>
         <div className="mt-6 flex justify-end gap-2">
           <button className={btnSecondary} onClick={() => setDelOpen(false)}>Annulla</button>
           <button className={btnRed} onClick={remove}>Elimina</button>

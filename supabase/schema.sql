@@ -181,3 +181,50 @@ create table if not exists public.saved_searches (
 alter table public.saved_searches enable row level security;
 drop policy if exists "auth_all" on public.saved_searches;
 create policy "auth_all" on public.saved_searches for all to authenticated using (true) with check (true);
+
+-- ---------------------------------------------------------
+-- AGGIORNAMENTO 2026-11-04: storico dei lead passati nel CRM
+-- Ogni lead aggiunto resta qui anche se poi lo elimini dal CRM,
+-- così la Ricerca lead non lo ripropone.
+-- ---------------------------------------------------------
+create table if not exists public.lead_history (
+  id uuid primary key default gen_random_uuid(),
+  lead_id uuid unique,             -- lead nel CRM (resta anche dopo l'eliminazione)
+  added_at timestamptz not null default now(),
+  name text,
+  phone text,
+  place_id text,
+  city text,
+  category text,
+  status text,
+  deleted_at timestamptz           -- valorizzato se il lead è stato eliminato dal CRM
+);
+create index if not exists lead_history_place_idx on public.lead_history(place_id);
+create index if not exists lead_history_phone_idx on public.lead_history(phone);
+alter table public.lead_history enable row level security;
+drop policy if exists "auth_all" on public.lead_history;
+create policy "auth_all" on public.lead_history for all to authenticated using (true) with check (true);
+
+create or replace function public.track_lead_history() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'DELETE' then
+    update public.lead_history set deleted_at = now(), status = old.status where lead_id = old.id;
+    return old;
+  end if;
+  insert into public.lead_history (lead_id, added_at, name, phone, place_id, city, category, status)
+  values (new.id, new.created_at, new.name, new.phone, new.place_id, new.city, new.category, new.status)
+  on conflict (lead_id) do update set
+    name = excluded.name, phone = excluded.phone, place_id = excluded.place_id,
+    city = excluded.city, category = excluded.category, status = excluded.status;
+  return new;
+end $$;
+
+drop trigger if exists leads_history on public.leads;
+create trigger leads_history after insert or update or delete on public.leads
+  for each row execute function public.track_lead_history();
+
+-- lead già presenti prima di questo aggiornamento
+insert into public.lead_history (lead_id, added_at, name, phone, place_id, city, category, status)
+select id, created_at, name, phone, place_id, city, category, status from public.leads
+on conflict (lead_id) do nothing;
