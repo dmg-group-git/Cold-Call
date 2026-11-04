@@ -257,8 +257,8 @@ export default function CrmPage() {
           Verranno cancellate anche le chiamate, le note e le registrazioni collegate. Non si può annullare.
         </p>
         <p className="mt-2 text-sm text-slate-600">
-          {toDelete?.length === 1 ? "Il lead resterà" : "I lead resteranno"} nello storico della Ricerca lead, così non te{" "}
-          {toDelete?.length === 1 ? "lo" : "li"} riproporrà.
+          {toDelete?.length === 1 ? "Resterà" : "Resteranno"} nello storico della Ricerca lead, così nelle ricerche vedrai che
+          {toDelete?.length === 1 ? " era già stato" : " erano già stati"} nel CRM.
         </p>
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button className={btnSecondary} onClick={() => setToDelete(null)}>Annulla</button>

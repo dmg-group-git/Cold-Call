@@ -80,6 +80,9 @@ interface SearchParams {
 }
 
 /** Un lead passato nel CRM (resta anche se poi viene eliminato). */
+/** Si può selezionare e salvare nel CRM (anche se c'era già stato in passato). */
+const selectable = (r: Result) => r.status === "nuovo" || r.status === "gia_passato";
+
 interface HistoryRow {
   id: string;
   lead_id: string | null;
@@ -261,7 +264,7 @@ export default function RicercaPage() {
       setResults([...all]);
     }
     setProgress((pr) => ({ ...pr, done: pr.total, current: "" }));
-    setSelected(new Set(all.filter((r) => r.status === "nuovo" && r.phone && r.in_comune).map((r) => r.place_id)));
+    setSelected(new Set(all.filter((r) => selectable(r) && r.phone && r.in_comune).map((r) => r.place_id)));
     setRunning(false);
 
     // ricerca salvata: ricordo cosa ho già visto, così la prossima volta mostro solo le novità
@@ -350,7 +353,7 @@ export default function RicercaPage() {
     const sigla = searchProv.match(/\((\w+)\)/)?.[1] ?? searchProv;
     const phonesUsed = new Set<string>();
     const rows = visible
-      .filter((r) => selected.has(r.place_id) && r.status === "nuovo")
+      .filter((r) => selected.has(r.place_id) && selectable(r))
       .filter((r) => !r.phone || (!phonesUsed.has(r.phone) && phonesUsed.add(r.phone)))
       .map((r) => ({
         name: r.name,
@@ -679,7 +682,7 @@ export default function RicercaPage() {
               <Toggle
                 checked={onlyNew}
                 onChange={setOnlyNew}
-                label={activeSaved ? "Solo novità" : "Nascondi già nel CRM o già passati"}
+                label={activeSaved ? "Solo novità" : "Nascondi già nel CRM"}
                 hint={activeSaved ? "Non viste l'ultima volta e non nel CRM" : undefined}
               />
             </div>
@@ -692,13 +695,13 @@ export default function RicercaPage() {
                     <input
                       type="checkbox"
                       checked={
-                        visible.some((r) => r.status === "nuovo") &&
-                        visible.filter((r) => r.status === "nuovo").every((r) => selected.has(r.place_id))
+                        visible.some(selectable) &&
+                        visible.filter(selectable).every((r) => selected.has(r.place_id))
                       }
                       onChange={(e) =>
                         setSelected((prev) => {
                           const n = new Set(prev);
-                          for (const r of visible.filter((x) => x.status === "nuovo")) {
+                          for (const r of visible.filter(selectable)) {
                             if (e.target.checked) n.add(r.place_id);
                             else n.delete(r.place_id);
                           }
@@ -718,15 +721,8 @@ export default function RicercaPage() {
                 {visible.map((r) => (
                   <tr key={r.place_id} className={`border-t border-black/[0.06] ${selected.has(r.place_id) ? "bg-brand-50/40" : ""}`}>
                     <td className="p-3">
-                      {r.status === "nuovo" ? (
+                      {selectable(r) ? (
                         <input type="checkbox" checked={selected.has(r.place_id)} onChange={() => toggle(r.place_id)} />
-                      ) : r.status === "gia_passato" ? (
-                        <span
-                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700"
-                          title="Era nel CRM ed è stato eliminato. Lo trovi nello storico in fondo alla pagina."
-                        >
-                          <History size={11} /> già passato
-                        </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                           <Check size={11} /> nel CRM
@@ -736,6 +732,14 @@ export default function RicercaPage() {
                     <td className="p-3">
                       <div className="flex flex-wrap items-center gap-1.5 font-medium text-slate-900">
                         {r.name}
+                        {r.status === "gia_passato" && (
+                          <span
+                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700"
+                            title="L'avevi già messo nel CRM e poi eliminato. Lo trovi nello storico in fondo alla pagina."
+                          >
+                            <History size={10} /> già stato nel CRM
+                          </span>
+                        )}
                         {r.novita && (
                           <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-700">nuovo</span>
                         )}
@@ -820,7 +824,7 @@ function LeadHistory({
       icon={History}
       tone="gray"
       title="Storico lead passati nel CRM"
-      sub="Chi è qui non ti viene riproposto nelle ricerche, anche se l'hai eliminato dal CRM."
+      sub="Nelle ricerche questi lead hanno l'etichetta «nel CRM» o «già stato nel CRM»."
       summary={missing ? "Da attivare" : `${rows.length} lead · ${deleted} eliminati dal CRM`}
       open={open}
       onToggle={setOpen}
@@ -874,7 +878,7 @@ function LeadHistory({
                       </span>
                       <button
                         className="p-1.5 text-slate-400 hover:text-rose-600"
-                        title="Togli dallo storico: le ricerche potranno riproporlo"
+                        title="Togli dallo storico"
                         onClick={() => onForget(h)}
                       >
                         <Trash2 size={14} />

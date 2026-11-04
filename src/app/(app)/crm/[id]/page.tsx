@@ -281,7 +281,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
       )}
       {ev && <EventDialog open onClose={() => setEv(null)} onDone={load} lead={lead} kind={ev} settings={settings} />}
       <Modal open={delOpen} onClose={() => setDelOpen(false)} title="Eliminare il lead?">
-        <p className="text-sm text-slate-600">Verranno cancellate anche le chiamate, le note e le registrazioni collegate. Il lead resterà nello storico della Ricerca lead, così non te lo riproporrà.</p>
+        <p className="text-sm text-slate-600">Verranno cancellate anche le chiamate, le note e le registrazioni collegate. Resterà nello storico della Ricerca lead, così nelle ricerche vedrai che era già stato nel CRM.</p>
         <div className="mt-6 flex justify-end gap-2">
           <button className={btnSecondary} onClick={() => setDelOpen(false)}>Annulla</button>
           <button className={btnRed} onClick={remove}>Elimina</button>
