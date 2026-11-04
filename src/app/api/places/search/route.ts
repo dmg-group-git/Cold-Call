@@ -15,6 +15,7 @@ const FIELDS = [
   "places.userRatingCount",
   "places.businessStatus",
   "places.primaryType",
+  "places.types",
   "places.location",
   "nextPageToken",
 ].join(",");
@@ -30,6 +31,7 @@ interface GPlace {
   userRatingCount?: number;
   businessStatus?: string;
   primaryType?: string;
+  types?: string[];
   location?: { latitude: number; longitude: number };
 }
 
@@ -67,15 +69,47 @@ function cityFromAddress(addr: string): string | null {
  * Google con una sola frase trova solo una parte delle strutture (es. "bed and breakfast" a Torremaggiore: 10,
  * mentre su Maps sono molte di più). Per i tipi più comuni facciamo più ricerche con sinonimi e uniamo i risultati.
  */
-const SYNONYMS: { match: RegExp; terms: string[] }[] = [
+const SYNONYMS: { match: RegExp; terms: string[]; types: RegExp; names: RegExp }[] = [
   {
     match: /\b(b\s*&\s*b|bnb|bed\s*(and|&)\s*breakfast|affittacamere|guest\s*house|case?\s*vacanz[ae])\b/i,
-    terms: ["bed and breakfast", "B&B", "affittacamere", "guest house", "casa vacanze", "camere"],
+    terms: ["bed and breakfast", "B&B", "affittacamere", "guest house", "casa vacanze"],
+    types: /^(lodging|bed_and_breakfast|guest_house|hotel|motel|inn|hostel|farmstay|cottage|private_guest_room|resort_hotel|extended_stay_hotel)$/,
+    names: /\b(b\s*&\s*b|bnb|bed|breakfast|affittacamer[ae]|camere|rooms?|guest|casa|case|vacanz[ae]|suites?|dimora|residence|relais|ospitalit|holiday|apartments?|appartament[oi]|villa|loft)\b/i,
   },
-  { match: /\b(hotel|albergh?[oi])\b/i, terms: ["hotel", "albergo"] },
-  { match: /\b(agriturism[oi])\b/i, terms: ["agriturismo", "masseria"] },
-  { match: /\b(ristorant[ei]|trattori[ae]|osteri[ae])\b/i, terms: ["ristorante", "trattoria", "osteria", "pizzeria"] },
+  {
+    match: /\b(hotel|albergh?[oi])\b/i,
+    terms: ["hotel", "albergo"],
+    types: /^(lodging|hotel|motel|inn|resort_hotel|extended_stay_hotel)$/,
+    names: /\b(hotel|albergo|resort|relais)\b/i,
+  },
+  {
+    match: /\b(agriturism[oi])\b/i,
+    terms: ["agriturismo", "masseria"],
+    types: /^(lodging|farmstay|farm|bed_and_breakfast|guest_house|restaurant)$/,
+    names: /\b(agriturism[oi]|masseria|tenuta|azienda agricola|fattoria)\b/i,
+  },
+  {
+    match: /\b(ristorant[ei]|trattori[ae]|osteri[ae])\b/i,
+    terms: ["ristorante", "trattoria", "osteria", "pizzeria"],
+    types: /(restaurant|^pizzeria$|^meal_takeaway$)/,
+    names: /\b(ristorante|trattoria|osteria|pizzeria|braceria|locanda)\b/i,
+  },
 ];
+
+/**
+ * Google, se trova pochi risultati per la frase, riempie la lista con attività vicine che non c'entrano
+ * (pub, negozi...). Per i tipi conosciuti teniamo solo i posti del tipo giusto (o col nome giusto).
+ */
+function fitsQuery(p: GPlace, q: string, synonyms: boolean): boolean {
+  if (!synonyms) return true;
+  const parts = q.split(/[,;\n]+/).map((x) => x.trim()).filter(Boolean);
+  const groups = parts.map((part) => SYNONYMS.find((g) => g.match.test(part)));
+  // se c'è anche un tipo di attività che non conosciamo, non filtriamo
+  if (!parts.length || groups.some((g) => !g)) return true;
+  const types = [p.primaryType, ...(p.types ?? [])].filter(Boolean) as string[];
+  const name = p.displayName?.text ?? "";
+  return groups.some((g) => !!g && (types.some((t) => g.types.test(t)) || g.names.test(name)));
+}
 
 /** Divide "B&B, agriturismo" in più ricerche e aggiunge i sinonimi. */
 function expandQuery(q: string, synonyms: boolean): string[] {
@@ -143,6 +177,7 @@ export async function POST(req: Request) {
   const comuneLc = String(comune).toLowerCase();
   const results = places
     .filter((p) => p.businessStatus !== "CLOSED_PERMANENTLY")
+    .filter((p) => fitsQuery(p, String(query), synonyms))
     .map((p) => ({
       place_id: p.id,
       name: p.displayName?.text ?? "",
