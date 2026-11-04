@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Trash2, Users, X } from "lucide-react";
+import { deleteLeads } from "@/lib/leads";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, LeadStatus } from "@/lib/types";
 import { STATUSES } from "@/lib/types";
@@ -17,6 +18,7 @@ import {
   PageTitle,
   StatusBadge,
   btnPrimary,
+  btnRed,
   btnSecondary,
   input,
   label,
@@ -30,12 +32,39 @@ export default function CrmPage() {
   const [status, setStatus] = useState<LeadStatus | "">("");
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  /** lead da eliminare in attesa di conferma */
+  const [toDelete, setToDelete] = useState<Lead[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     const { data } = await supabase.from("leads").select("*").order("updated_at", { ascending: false }).limit(1000);
     setLeads((data as Lead[]) ?? []);
     setLoading(false);
+  }
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  async function confirmDelete() {
+    if (!toDelete) return;
+    setDeleting(true);
+    const ids = toDelete.map((l) => l.id);
+    const error = await deleteLeads(supabase, ids);
+    setDeleting(false);
+    setToDelete(null);
+    if (error) return setMsg("Errore nell'eliminazione: " + error.message);
+    setMsg(ids.length === 1 ? `"${toDelete[0].name}" eliminato.` : `${ids.length} lead eliminati.`);
+    setSelected(new Set());
+    load();
   }
   useEffect(() => {
     load();
@@ -54,6 +83,9 @@ export default function CrmPage() {
     const s = q.toLowerCase();
     return [l.name, l.city, l.phone, l.contact_person, l.email].some((v) => v?.toLowerCase().includes(s));
   });
+
+  const selectedVisible = filtered.filter((l) => selected.has(l.id));
+  const allVisibleSelected = filtered.length > 0 && filtered.every((l) => selected.has(l.id));
 
   const pill = (active: boolean) =>
     `flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition ${
@@ -85,8 +117,8 @@ export default function CrmPage() {
       </div>
 
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-black/[0.06] p-3">
-          <div className="relative max-w-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.06] p-3">
+          <div className="relative w-full max-w-sm">
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className={`${input} pl-9`}
@@ -95,6 +127,16 @@ export default function CrmPage() {
               onChange={(e) => setQ(e.target.value)}
             />
           </div>
+          {selectedVisible.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button className={`${btnSecondary} px-3 py-1.5 text-sm`} onClick={() => setSelected(new Set())}>
+                <X size={14} /> Deseleziona
+              </button>
+              <button className={`${btnRed} px-3 py-1.5 text-sm`} onClick={() => setToDelete(selectedVisible)}>
+                <Trash2 size={14} /> Elimina {selectedVisible.length}
+              </button>
+            </div>
+          )}
         </div>
         {loading ? (
           <div className="px-5">
@@ -119,20 +161,41 @@ export default function CrmPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                 <tr>
+                  <th className="w-10 py-3 pl-5 pr-0">
+                    <input
+                      type="checkbox"
+                      aria-label="Seleziona tutti"
+                      checked={allVisibleSelected}
+                      onChange={(e) =>
+                        setSelected((prev) => {
+                          const n = new Set(prev);
+                          for (const l of filtered) {
+                            if (e.target.checked) n.add(l.id);
+                            else n.delete(l.id);
+                          }
+                          return n;
+                        })
+                      }
+                    />
+                  </th>
                   <th className="px-5 py-3">Struttura</th>
                   <th className="hidden px-5 py-3 md:table-cell">Telefono</th>
                   <th className="px-5 py-3">Stato</th>
                   <th className="hidden px-5 py-3 lg:table-cell">Prossima azione</th>
                   <th className="hidden px-5 py-3 sm:table-cell">Aggiornato</th>
+                  <th className="w-12 px-3 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.06]">
                 {filtered.map((l) => (
                   <tr
                     key={l.id}
-                    className="group cursor-pointer transition-colors hover:bg-brand-50/50"
+                    className={`group cursor-pointer transition-colors hover:bg-brand-50/50 ${selected.has(l.id) ? "bg-brand-50/40" : ""}`}
                     onClick={() => router.push(`/crm/${l.id}`)}
                   >
+                    <td className="py-4 pl-5 pr-0" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" aria-label={`Seleziona ${l.name}`} checked={selected.has(l.id)} onChange={() => toggle(l.id)} />
+                    </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3.5">
                         <Avatar name={l.name} size="sm" />
@@ -158,6 +221,19 @@ export default function CrmPage() {
                       {l.next_action_at ? formatDateTime(l.next_action_at) : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="hidden px-5 py-4 text-slate-500 sm:table-cell">{formatDateTime(l.updated_at)}</td>
+                    <td className="px-3 py-4 text-right">
+                      <button
+                        className="rounded-full p-2 text-slate-300 transition hover:bg-rose-50 hover:text-rose-600 group-hover:text-slate-400"
+                        title="Elimina lead"
+                        aria-label={`Elimina ${l.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setToDelete([l]);
+                        }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -166,6 +242,31 @@ export default function CrmPage() {
         )}
       </Card>
       <p className="mt-3 text-xs text-slate-400">{filtered.length} lead mostrati</p>
+      {msg && (
+        <Alert tone={msg.startsWith("Errore") ? "error" : "success"} className="mt-3">
+          {msg}
+        </Alert>
+      )}
+      <Modal
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        icon={Trash2}
+        title={toDelete?.length === 1 ? `Eliminare "${toDelete[0].name}"?` : `Eliminare ${toDelete?.length ?? 0} lead?`}
+      >
+        <p className="text-sm text-slate-600">
+          Verranno cancellate anche le chiamate, le note e le registrazioni collegate. Non si può annullare.
+        </p>
+        <p className="mt-2 text-sm text-slate-600">
+          {toDelete?.length === 1 ? "Il lead resterà" : "I lead resteranno"} nello storico della Ricerca lead, così non te{" "}
+          {toDelete?.length === 1 ? "lo" : "li"} riproporrà.
+        </p>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button className={btnSecondary} onClick={() => setToDelete(null)}>Annulla</button>
+          <button className={btnRed} onClick={confirmDelete} disabled={deleting}>
+            <Trash2 size={15} /> {deleting ? "Elimino…" : "Elimina"}
+          </button>
+        </div>
+      </Modal>
       <AddLead open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
     </>
   );
