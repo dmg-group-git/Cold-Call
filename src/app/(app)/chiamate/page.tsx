@@ -821,7 +821,7 @@ export default function ChiamatePage() {
                 {outcome === "interessato" && (
                   <>
                     <ActionButton icon={MessageCircle} done={done.wa} onClick={() => setWaOpen("wa_answered")}>
-                      Inviamo il WhatsApp con video e PDF?
+                      Inviamo il WhatsApp?
                     </ActionButton>
                     <ActionButton icon={Video} done={done.meet} onClick={() => setEvOpen("videocall")}>
                       Fissiamo la videocall
@@ -875,7 +875,7 @@ export default function ChiamatePage() {
           materials={materials}
           settings={settings}
           appointment={appointment}
-          title={waOpen === "wa_answered" ? "Inviamo il WhatsApp con video e PDF?" : "Inviamo il WhatsApp?"}
+          title="Inviamo il WhatsApp?"
         />
       )}
       {evOpen && (
