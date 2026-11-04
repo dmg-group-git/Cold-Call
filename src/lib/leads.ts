@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Elimina uno o più lead dal CRM, insieme alle loro registrazioni audio.
- * Lo storico (tabella lead_history) li ricorda comunque, così la Ricerca lead non li ripropone.
+ * Lo storico (tabella lead_history) li ricorda comunque, così la Ricerca lead li segna come «già stato nel CRM».
  */
 export async function deleteLeads(supabase: SupabaseClient, ids: string[]) {
   if (!ids.length) return null;
