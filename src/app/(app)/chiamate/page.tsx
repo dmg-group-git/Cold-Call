@@ -73,6 +73,33 @@ import {
 
 type Phase = "ready" | "calling" | "analyzing" | "result";
 
+/** Esito in sospeso: resta salvato nel browser finché non premi "Salva e passa al prossimo". */
+const PENDING_KEY = "chiamate:esito-in-sospeso";
+type Pending = {
+  phase: "analyzing" | "result";
+  lead: Lead;
+  interactionId: string | null;
+  analysis: Analysis | null;
+  analysisError: string | null;
+  outcome: Outcome;
+  notes: string;
+  done: Record<string, boolean>;
+};
+function readPending(): Pending | null {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    return raw ? (JSON.parse(raw) as Pending) : null;
+  } catch {
+    return null;
+  }
+}
+function writePending(p: Pending | null) {
+  try {
+    if (p) localStorage.setItem(PENDING_KEY, JSON.stringify(p));
+    else localStorage.removeItem(PENDING_KEY);
+  } catch {}
+}
+
 export default function ChiamatePage() {
   const supabase = useMemo(() => createClient(), []);
   const { settings, scripts, materials, loading: loadingData } = useAppData();
@@ -118,6 +145,7 @@ export default function ChiamatePage() {
   }, [phase]);
 
   const loadNext = useCallback(async () => {
+    writePending(null);
     setLoading(true);
     const now = new Date().toISOString();
     const [{ data: leads }, { data: dnc }] = await Promise.all([
@@ -159,9 +187,68 @@ export default function ChiamatePage() {
     setLoading(false);
   }, [supabase]);
 
+  // all'apertura: se c'era un esito lasciato a metà, lo ripristino invece di passare al prossimo lead
+  const restored = useRef(false);
   useEffect(() => {
-    loadNext();
-  }, [loadNext]);
+    const p = readPending();
+    if (!p) {
+      restored.current = true;
+      loadNext();
+      return;
+    }
+    setLead(p.lead);
+    setInteractionId(p.interactionId);
+    setAnalysis(p.analysis);
+    setAnalysisError(p.analysisError);
+    setOutcome(p.outcome);
+    setNotes(p.notes);
+    setDone(p.done);
+    setPhase(p.phase);
+    setLoading(false);
+    restored.current = true;
+    supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .not("phone", "is", null)
+      .not("status", "in", "(cliente,perso)")
+      .then(({ count }) => setQueueCount(count ?? 0));
+  }, [loadNext, supabase]);
+
+  // salvo l'esito in sospeso a ogni modifica, così resta anche cambiando pagina
+  useEffect(() => {
+    if (!restored.current || !lead) return;
+    if (phase === "result" || phase === "analyzing")
+      writePending({ phase, lead, interactionId, analysis, analysisError, outcome, notes, done });
+  }, [phase, lead, interactionId, analysis, analysisError, outcome, notes, done]);
+
+  // se ero uscito durante l'analisi: controllo nel database quando è pronta
+  const analyzingHere = useRef(false);
+  useEffect(() => {
+    if (phase !== "analyzing" || analyzingHere.current || !interactionId) return;
+    let stop = false;
+    const started = Date.now();
+    const check = async () => {
+      const { data } = await supabase
+        .from("interactions")
+        .select("analysis_status, data")
+        .eq("id", interactionId)
+        .single();
+      if (stop) return;
+      const a = (data?.data as { analysis?: Analysis } | null)?.analysis;
+      if (data?.analysis_status === "completata" && a) {
+        setAnalysis(a);
+        setOutcome(a.esito);
+        setPhase("result");
+      } else if (data?.analysis_status === "errore" || Date.now() - started > 120_000) {
+        setAnalysisError("l'analisi non è terminata");
+        setPhase("result");
+      } else setTimeout(check, 3000);
+    };
+    check();
+    return () => {
+      stop = true;
+    };
+  }, [phase, interactionId, supabase]);
 
   /** Dalla lista "Richiamate di oggi": porta subito quel lead in primo piano. */
   function pickLead(l: Lead) {
@@ -245,6 +332,7 @@ export default function ChiamatePage() {
   }
 
   async function runAnalysis(id: string) {
+    analyzingHere.current = true;
     setPhase("analyzing");
     setAnalysisError(null);
     try {
@@ -264,6 +352,7 @@ export default function ChiamatePage() {
     } catch (e) {
       setAnalysisError(e instanceof Error ? e.message : "Errore");
     }
+    analyzingHere.current = false;
     setPhase("result");
   }
 
