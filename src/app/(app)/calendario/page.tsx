@@ -8,12 +8,13 @@ import {
   ChevronRight,
   PhoneCall,
   RefreshCw,
+  Trash2,
   Video,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatPhone, romeLocalToIso } from "@/lib/utils";
-import { Card, EmptyState, IconTile, PageTitle, Segmented, Spinner, Toggle, btnSecondary, cardBase, link, type Tone } from "@/components/ui";
+import { Alert, Card, EmptyState, IconTile, Modal, PageTitle, Segmented, Spinner, Toggle, btnRed, btnSecondary, cardBase, link, type Tone } from "@/components/ui";
 
 /* ------------------------------------------------------------------ */
 /* Tipi e colori                                                       */
@@ -30,6 +31,7 @@ type Appt = {
   lead?: MiniLead | null;
   meetLink?: string | null;
   htmlLink?: string | null;
+  googleId?: string | null; // id dell'evento su Google Calendar
 };
 
 const KIND: Record<Kind, { label: string; tone: Tone; icon: LucideIcon; chip: string; dot: string }> = {
@@ -97,6 +99,7 @@ export default function CalendarioPage() {
   const [loading, setLoading] = useState(true);
   const [googleNote, setGoogleNote] = useState<string | null>(null);
   const reqId = useRef(0);
+  const [toDelete, setToDelete] = useState<Appt | null>(null);
 
   useEffect(() => {
     setView(readPref("cal-view", "mese"));
@@ -158,6 +161,7 @@ export default function CalendarioPage() {
         lead: lead ?? null,
         meetLink: d.meetLink,
         htmlLink: d.htmlLink,
+        googleId: d.eventId,
       });
     }
     for (const l of (rec.data ?? []) as (MiniLead & { next_action_at: string })[]) {
@@ -169,7 +173,7 @@ export default function CalendarioPage() {
         type GEv = { id: string; title: string; start: string; end: string | null; allDay: boolean; htmlLink: string | null; meetLink: string | null };
         for (const e of ((g.json as { events?: GEv[] }).events ?? []) as GEv[]) {
           if (ourEventIds.has(e.id)) continue; // già mostrato come videocall/richiamata
-          list.push({ ...e, id: `g-${e.id}`, kind: "google" });
+          list.push({ ...e, id: `g-${e.id}`, kind: "google", googleId: e.id });
         }
       } else if (g.status === 409) {
         note = "collega";
@@ -217,6 +221,8 @@ export default function CalendarioPage() {
     setCursor({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) - 1 });
     setSelected(today);
   }
+
+  const onDelete = setToDelete;
 
   const summary = counts
     .filter(([k, n]) => n > 0 || k !== "google")
@@ -357,14 +363,24 @@ export default function CalendarioPage() {
             </p>
             <div className="divide-y divide-black/[0.06]">
               {(byDay.get(selected) ?? []).map((a) => (
-                <ApptRow key={a.id} a={a} />
+                <ApptRow key={a.id} a={a} onDelete={onDelete} />
               ))}
             </div>
           </Card>
         </div>
       ) : (
-        <Agenda byDay={byDay} today={today} loading={loading} onReload={load} />
+        <Agenda byDay={byDay} today={today} loading={loading} onReload={load} onDelete={onDelete} />
       )}
+
+      <DeleteDialog
+        appt={toDelete}
+        onClose={() => setToDelete(null)}
+        onDone={(a) => {
+          setAppts((list) => list.filter((x) => x.id !== a.id));
+          setToDelete(null);
+          load();
+        }}
+      />
     </>
   );
 }
@@ -377,11 +393,13 @@ function Agenda({
   today,
   loading,
   onReload,
+  onDelete,
 }: {
   byDay: Map<string, Appt[]>;
   today: string;
   loading: boolean;
   onReload: () => void;
+  onDelete: (a: Appt) => void;
 }) {
   const days = [...byDay.keys()].filter((k) => k >= today).sort();
   if (!days.length && !loading)
@@ -409,7 +427,7 @@ function Agenda({
           </h3>
           <div className={`${cardBase} divide-y divide-black/[0.06] px-5`}>
             {byDay.get(k)!.map((a) => (
-              <ApptRow key={a.id} a={a} />
+              <ApptRow key={a.id} a={a} onDelete={onDelete} />
             ))}
           </div>
         </section>
@@ -421,7 +439,7 @@ function Agenda({
 /* ------------------------------------------------------------------ */
 /* Riga appuntamento                                                   */
 /* ------------------------------------------------------------------ */
-function ApptRow({ a }: { a: Appt }) {
+function ApptRow({ a, onDelete }: { a: Appt; onDelete: (a: Appt) => void }) {
   const k = KIND[a.kind];
   return (
     <div className="flex items-start gap-3 py-3.5">
@@ -437,8 +455,7 @@ function ApptRow({ a }: { a: Appt }) {
           {a.lead?.city ? ` · ${a.lead.city}` : ""}
           {a.lead?.phone ? ` · ${formatPhone(a.lead.phone)}` : ""}
         </div>
-        {(a.lead || a.meetLink || a.htmlLink) && (
-          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
             {a.lead && (
               <Link href={`/crm/${a.lead.id}`} className={link}>
                 Apri scheda
@@ -454,9 +471,75 @@ function ApptRow({ a }: { a: Appt }) {
                 Apri in Google
               </a>
             )}
+            <button onClick={() => onDelete(a)} className="inline-flex items-center gap-1 font-medium text-[#ff3b30] hover:underline">
+              <Trash2 size={13} /> Elimina
+            </button>
           </div>
-        )}
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Conferma eliminazione                                               */
+/* ------------------------------------------------------------------ */
+function DeleteDialog({ appt, onClose, onDone }: { appt: Appt | null; onClose: () => void; onDone: (a: Appt) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    setErr(null);
+    setBusy(false);
+  }, [appt]);
+  if (!appt) return null;
+  const what = appt.kind === "videocall" ? "la videocall" : appt.kind === "richiamata" ? "la richiamata" : "l'impegno";
+  const when = `${dayLabel(appt.start.slice(0, 10)).toLowerCase()}${appt.allDay ? "" : ` alle ${time(appt.start)}`}`;
+
+  async function confirm() {
+    if (!appt) return;
+    setBusy(true);
+    setErr(null);
+    const body =
+      appt.kind === "videocall"
+        ? { kind: "videocall", interactionId: appt.id }
+        : appt.kind === "richiamata"
+          ? { kind: "richiamata", leadId: appt.lead?.id, start: appt.start }
+          : { kind: "google", eventId: appt.googleId };
+    try {
+      const r = await fetch("/api/google/event", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(r.status === 409 ? "Google non è collegato: collegalo in Impostazioni." : j.error || "Errore");
+      onDone(appt);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Errore");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open icon={Trash2} onClose={onClose} title={`Eliminare ${what}?`}>
+      <div className="space-y-4">
+        <p className="text-[15px] text-slate-600">
+          <b className="text-[#1d1d1f]">{appt.title}</b>, {when}.
+          <br />
+          {appt.kind === "richiamata"
+            ? "La richiamata viene tolta dal lead e, se c'è, anche da Google Calendar."
+            : "L'evento viene cancellato anche da Google Calendar."}
+          {appt.kind === "videocall" && " Se avevi invitato il cliente, Google lo avvisa dell'annullamento."}
+        </p>
+        {err && <Alert tone="error">{err}</Alert>}
+        <div className="flex justify-end gap-2">
+          <button className={btnSecondary} onClick={onClose} disabled={busy}>
+            Annulla
+          </button>
+          <button className={btnRed} onClick={confirm} disabled={busy}>
+            {busy ? <Spinner /> : <Trash2 size={15} />} Elimina
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
