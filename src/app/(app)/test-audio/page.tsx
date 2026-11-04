@@ -77,14 +77,14 @@ export default function TestAudioPage() {
 
   return (
     <>
-      <PageTitle sub="Fai questa prova prima di iniziare: chiama un amico dall'iPhone tramite il Mac, in vivavoce, e registra.">
+      <PageTitle sub="Fai questa prova prima di iniziare: chiama un amico dal telefono, in vivavoce vicino al Mac, e registra.">
         Prova audio
       </PageTitle>
 
       <Card className="space-y-4">
         <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
           <li>Scegli il dispositivo (per iniziare: microfono del Mac).</li>
-          <li>Fai partire una chiamata di prova dal Mac (FaceTime → chiamata da iPhone), audio sugli altoparlanti del Mac, <b>senza cuffie</b>.</li>
+          <li>Chiama un amico dal telefono, metti il <b>vivavoce</b> e appoggialo vicino al Mac, <b>senza cuffie</b>.</li>
           <li>Premi &quot;Avvia registrazione&quot;, parlate 30 secondi, poi &quot;Ferma&quot;.</li>
           <li>Riascolta e premi &quot;Trascrivi&quot;: se si capiscono bene entrambe le voci, sei pronto.</li>
         </ol>
