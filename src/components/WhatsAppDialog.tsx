@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, Material, Script, Settings } from "@/lib/types";
-import { fillTemplate, materialsText, waLink, withMaterials, phoneKind } from "@/lib/utils";
+import { appointmentVars, fillTemplate, materialsText, missingAppointmentVars, waLink, withMaterials, phoneKind } from "@/lib/utils";
 import { MessageCircle } from "lucide-react";
 import { WaPreview } from "./WaPreview";
 import { Modal, btnGreen, btnSecondary, input, label } from "./ui";
@@ -21,6 +21,7 @@ export function WhatsAppDialog({
   materials,
   settings,
   title,
+  appointment,
 }: {
   open: boolean;
   onClose: () => void;
@@ -31,10 +32,14 @@ export function WhatsAppDialog({
   materials: Material[];
   settings: Settings | null;
   title?: string;
+  /** Data e ora capite dalla chiamata ("YYYY-MM-DDTHH:mm"), usate se non c'è ancora una videocall in calendario. */
+  appointment?: string | null;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [text, setText] = useState("");
   const [template, setTemplate] = useState(kind);
+  const [when, setWhen] = useState("");
+  const [meetLink, setMeetLink] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -48,12 +53,43 @@ export function WhatsAppDialog({
     setSelected(ids.filter((id) => materials.some((m) => m.id === id)));
   }, [open, template, scripts, materials]);
 
+  // data e ora della videocall: prima quella fissata sul calendario, altrimenti quella capita dalla chiamata
   useEffect(() => {
     if (!open) return;
-    const body = scripts.find((s) => s.kind === template)?.body ?? "";
+    setWhen(appointment ?? "");
+    setMeetLink(null);
+    let cancelled = false;
+    createClient()
+      .from("interactions")
+      .select("data")
+      .eq("lead_id", lead.id)
+      .eq("type", "event")
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        const ev = (data ?? [])
+          .map((r) => r.data as { kind?: string; start?: string; meetLink?: string | null } | null)
+          .find((d) => d?.kind === "videocall" && d.start);
+        if (cancelled || !ev?.start) return;
+        setWhen(ev.start.slice(0, 16));
+        setMeetLink(ev.meetLink ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, lead.id, appointment]);
+
+  const body = scripts.find((s) => s.kind === template)?.body ?? "";
+  const usesAppointment = /\{(giorno|ora|link_videocall)\}/i.test(body);
+
+  useEffect(() => {
+    if (!open) return;
     const mats = materials.filter((m) => selected.includes(m.id));
-    setText(withMaterials(fillTemplate(body, lead, settings, { materiali: materialsText(mats) }), body, mats));
-  }, [open, template, selected, scripts, materials, lead, settings]);
+    const extra = { materiali: materialsText(mats), ...appointmentVars(when, meetLink) };
+    setText(withMaterials(fillTemplate(body, lead, settings, extra), body, mats));
+  }, [open, body, selected, materials, lead, settings, when, meetLink]);
+
+  const missing = missingAppointmentVars(text);
 
   async function confirm() {
     if (!lead.phone) return;
@@ -102,6 +138,21 @@ export function WhatsAppDialog({
               <p className="mt-1 text-xs text-slate-500">Partono come link nel messaggio (al posto di {"{materiali}"} o in fondo).</p>
             </div>
           )}
+          {usesAppointment && (
+            <div>
+              <span className={label}>Data e ora della videocall</span>
+              <input type="datetime-local" className={input} value={when} onChange={(e) => setWhen(e.target.value)} />
+              <p className="mt-1 text-xs text-slate-500">Riempie {"{giorno}"} e {"{ora}"} nel messaggio.</p>
+            </div>
+          )}
+          {missing.length > 0 && (
+            <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+              Nel messaggio manca ancora: <b>{missing.join(", ")}</b>.{" "}
+              {missing.some((v) => /link/i.test(v))
+                ? "Il link arriva quando fissi la videocall con Google Meet, oppure scrivilo a mano."
+                : "Scegli data e ora qui sopra."}
+            </p>
+          )}
           <div>
             <span className={label}>Testo (puoi modificarlo)</span>
             <textarea className={`${input} h-40`} value={text} onChange={(e) => setText(e.target.value)} />
@@ -123,7 +174,7 @@ export function WhatsAppDialog({
             <button className={btnSecondary} onClick={onClose}>
               Annulla
             </button>
-            <button className={btnGreen} onClick={confirm} disabled={!text.trim()}>
+            <button className={btnGreen} onClick={confirm} disabled={!text.trim() || missing.some((v) => !/link/i.test(v))}>
               Sì, apri WhatsApp
             </button>
           </div>
