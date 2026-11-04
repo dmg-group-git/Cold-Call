@@ -8,7 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Analysis, Lead, Outcome } from "@/lib/types";
 import { OUTCOMES } from "@/lib/types";
-import { fillTemplate, formatDateTime, formatDuration, formatPhone, openTel, prettyLocal, siteUrl, telLink } from "@/lib/utils";
+import { fillTemplate, formatDateTime, formatDuration, formatPhone, prettyLocal, siteUrl } from "@/lib/utils";
 import { useAppData } from "@/components/useAppData";
 import { useRecorder } from "@/components/useRecorder";
 import { LevelMeter } from "@/components/LevelMeter";
@@ -30,13 +30,13 @@ import {
   MapPin,
   Maximize2,
   MessageCircle,
+  Copy,
   Mic,
   Minimize2,
   PartyPopper,
   Phone,
   PhoneMissed,
   PhoneOff,
-  RotateCcw,
   Search,
   SkipForward,
   Sparkles,
@@ -279,8 +279,7 @@ export default function ChiamatePage() {
     callStart.current = Date.now();
     setCallSeconds(0);
     setPhase("calling");
-    // apre FaceTime sul Mac, che passa la chiamata all'iPhone
-    openTel(lead.phone);
+    // niente chiamata dal Mac: il numero si compone a mano sul telefono
   }
 
   function stopRecordingOnly() {
@@ -543,12 +542,7 @@ export default function ChiamatePage() {
                   </span>
                 )}
               </div>
-              <a
-                href={telLink(lead.phone!)}
-                className="mt-4 text-[28px] font-light tracking-tight text-[#007aff] tabular-nums transition hover:opacity-70"
-              >
-                {formatPhone(lead.phone)}
-              </a>
+              <BigPhone phone={lead.phone!} />
               {lead.website && (
                 <a
                   href={siteUrl(lead.website)}
@@ -620,8 +614,12 @@ export default function ChiamatePage() {
               {phase === "ready" && (
                 <div className="space-y-4">
                   <button className={`${btnGreen} ${btnLg} w-full`} onClick={startCall}>
-                    <Phone size={19} fill="currentColor" /> Chiama <kbd className="ml-1">C</kbd>
+                    {recordEnabled ? <Mic size={19} /> : <Phone size={19} fill="currentColor" />}
+                    {recordEnabled ? "Avvia registrazione" : "Inizia chiamata"} <kbd className="ml-1">C</kbd>
                   </button>
+                  <p className="-mt-1 text-center text-[13px] text-slate-500">
+                    Poi componi il numero sul telefono e metti il <b>vivavoce</b>, vicino al Mac.
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button className={`${btnSecondary} whitespace-nowrap px-3`} onClick={noAnswer}>
                       <PhoneMissed size={15} /> Non risponde <kbd>N</kbd>
@@ -688,9 +686,7 @@ export default function ChiamatePage() {
                     <button className={`${btnSecondary} whitespace-nowrap px-3`} onClick={noAnswer}>
                       <PhoneMissed size={15} /> Non risponde <kbd>N</kbd>
                     </button>
-                    <a className={btnSecondary} href={telLink(lead.phone!)}>
-                      <RotateCcw size={15} /> Richiama
-                    </a>
+                    <CopyButton phone={lead.phone!} />
                   </div>
                 </div>
               )}
@@ -980,6 +976,51 @@ function ActionButton({
       <span className={`flex items-center gap-0.5 text-[13px] ${done ? "font-medium text-[#34c759]" : "text-slate-400"}`}>
         {done ? "Fatto" : <ChevronRight size={18} className="text-slate-300" />}
       </span>
+    </button>
+  );
+}
+
+/** Numero grande, da leggere e comporre sul telefono. Clic = copia. */
+function BigPhone({ phone }: { phone: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(phone.replace(/\s/g, ""));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Clicca per copiare"
+      className="mt-4 flex flex-col items-center rounded-2xl px-4 py-2 transition hover:bg-black/[0.03]"
+    >
+      <span className="select-all text-[40px] font-semibold leading-tight tracking-tight text-[#1d1d1f] tabular-nums sm:text-[46px]">
+        {formatPhone(phone)}
+      </span>
+      <span className="mt-1 flex items-center gap-1 text-[12px] font-medium text-[#007aff]">
+        {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copiato" : "Componi sul telefono · clic per copiare"}
+      </span>
+    </button>
+  );
+}
+
+function CopyButton({ phone }: { phone: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className={`${btnSecondary} whitespace-nowrap px-3`}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(phone.replace(/\s/g, ""));
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {}
+      }}
+    >
+      {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Copiato" : "Copia numero"}
     </button>
   );
 }

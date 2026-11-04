@@ -184,25 +184,24 @@ export default function ImpostazioniPage() {
             <SettingsRow
               icon={Smartphone}
               tone="green"
-              title="Chiamate da iPhone"
+              title="Come chiamare"
               value="Aiuto"
               open={openRow === "iphone"}
               onToggle={() => toggle("iphone")}
               last
             >
               <div className="space-y-3 text-[15px] text-slate-700">
-                <p>Se compare &quot;iPhone non è configurato per effettuare chiamate tramite il Mac&quot;:</p>
+                <p>Il sito non fa partire la chiamata: chiami tu dal telefono. Il Mac registra soltanto.</p>
                 <ol className="list-decimal space-y-1.5 pl-5">
+                  <li>In <b>Chiamate</b> premi <b>Avvia registrazione</b> (tasto C).</li>
+                  <li>Sul <b>telefono</b> componi il numero grande che vedi sullo schermo.</li>
                   <li>
-                    Su <b>iPhone</b>: Impostazioni → App → Telefono → <b>Chiamate su altri dispositivi</b>. Attivalo e accendi
-                    l&apos;interruttore del tuo Mac.
+                    Metti il <b>vivavoce</b> e appoggia il telefono vicino al Mac: il Mac registra solo quello che sente,
+                    quindi senza vivavoce non si sente il cliente.
                   </li>
-                  <li>
-                    Sul <b>Mac</b>: apri l&apos;app FaceTime (o Telefono) → Impostazioni → spunta <b>Chiamate da iPhone</b>.
-                  </li>
-                  <li>iPhone e Mac devono avere lo stesso Apple ID, con Wi-Fi e Bluetooth accesi e vicini.</li>
+                  <li>A fine chiamata premi <b>Termina</b> (tasto T): parte trascrizione e analisi.</li>
                 </ol>
-                <p className="text-slate-500">Se ancora non va: spegni e riaccendi Wi-Fi su entrambi, poi riprova.</p>
+                <p className="text-slate-500">Niente cuffie o auricolari, altrimenti il Mac non sente la voce del cliente.</p>
               </div>
             </SettingsRow>
           </div>
