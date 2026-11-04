@@ -874,6 +874,7 @@ export default function ChiamatePage() {
           scripts={scripts}
           materials={materials}
           settings={settings}
+          appointment={appointment}
           title={waOpen === "wa_answered" ? "Inviamo il WhatsApp con video e PDF?" : "Inviamo il WhatsApp?"}
         />
       )}

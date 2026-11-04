@@ -56,6 +56,26 @@ export function fillTemplate(
   );
 }
 
+/**
+ * Variabili dell'appuntamento per gli script WhatsApp.
+ * local = "YYYY-MM-DDTHH:mm" (ora italiana). Ritorna {giorno} es. "giovedì 6 novembre" e {ora} es. "10:30".
+ */
+export function appointmentVars(local: string | null | undefined, link?: string | null): Record<string, string> {
+  const vars: Record<string, string> = {};
+  if (link) vars.link_videocall = link;
+  const m = local?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return vars;
+  const date = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12));
+  vars.giorno = date.toLocaleDateString("it-IT", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
+  vars.ora = `${m[4]}:${m[5]}`;
+  return vars;
+}
+
+/** Variabili dell'appuntamento ancora da riempire nel testo (es. "{giorno}"). */
+export function missingAppointmentVars(text: string): string[] {
+  return Array.from(new Set(text.match(/\{(giorno|ora|link_videocall)\}/gi) ?? []));
+}
+
 export function materialsText(materials: Material[]): string {
   return materials.map((m) => `• ${m.title}: ${m.url}`).join("\n");
 }

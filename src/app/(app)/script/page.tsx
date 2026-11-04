@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, MessageCircle, MessageCircleOff, Paperclip, Phone, Upload, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Script } from "@/lib/types";
-import { fillTemplate, materialsText, withMaterials } from "@/lib/utils";
+import { appointmentVars, fillTemplate, materialsText, withMaterials } from "@/lib/utils";
 import { MAX_FILE_MB, uploadMaterialFile } from "@/lib/materials";
 import { useAppData } from "@/components/useAppData";
 import { WaPreview } from "@/components/WaPreview";
@@ -21,9 +21,10 @@ const KIND_ICON: Record<Script["kind"], LucideIcon> = {
   wa_no_answer: MessageCircleOff,
   wa_answered: MessageCircle,
 };
-const VARS = ["{nome}", "{struttura}", "{città}", "{mio_nome}", "{azienda}", "{sito}", "{riferimenti}", "{materiali}"];
+const VARS = ["{nome}", "{struttura}", "{città}", "{mio_nome}", "{azienda}", "{sito}", "{riferimenti}", "{materiali}", "{giorno}", "{ora}", "{link_videocall}"];
 
 const EXAMPLE_LEAD = { name: "B&B Il Gelso", contact_person: "Maria", city: "Vieste" };
+const EXAMPLE_APPOINTMENT = appointmentVars("2026-11-06T10:30", "https://meet.google.com/abc-defg-hij");
 
 export default function ScriptPage() {
   const { scripts, materials, settings, loading, reload } = useAppData();
@@ -72,7 +73,7 @@ export default function ScriptPage() {
 
   function preview(kind: Script["kind"]) {
     const mats = materials.filter((m) => (attach[kind] ?? []).includes(m.id));
-    return withMaterials(fillTemplate(drafts[kind] ?? "", EXAMPLE_LEAD, settings, { materiali: materialsText(mats) }), drafts[kind] ?? "", mats);
+    return withMaterials(fillTemplate(drafts[kind] ?? "", EXAMPLE_LEAD, settings, { materiali: materialsText(mats), ...EXAMPLE_APPOINTMENT }), drafts[kind] ?? "", mats);
   }
 
   function insertVar(v: string) {
@@ -92,7 +93,7 @@ export default function ScriptPage() {
   if (loading) return <Loading />;
 
   const kind = tab;
-  const vars = VARS.filter((v) => kind !== "call" || v !== "{materiali}");
+  const vars = VARS.filter((v) => kind !== "call" || !["{materiali}", "{giorno}", "{ora}", "{link_videocall}"].includes(v));
   const dirty = (drafts[kind] ?? "") !== (scripts.find((s) => s.kind === kind)?.body ?? "");
 
   return (
@@ -147,6 +148,12 @@ export default function ScriptPage() {
                 </button>
               ))}
             </div>
+            {kind !== "call" && (
+              <p className="mt-2 text-xs text-slate-500">
+                {"{giorno}"}, {"{ora}"} e {"{link_videocall}"} si riempiono da soli con la videocall fissata (puoi cambiarla
+                prima di inviare).
+              </p>
+            )}
           </div>
           <div>
             <span className={label}>
