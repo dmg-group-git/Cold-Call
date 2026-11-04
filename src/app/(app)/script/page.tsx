@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Script } from "@/lib/types";
 import { appointmentVars, fillTemplate, materialsText, withMaterials } from "@/lib/utils";
 import { MAX_FILE_MB, uploadMaterialFile } from "@/lib/materials";
+import { SHOW_WA_ATTACHMENTS } from "@/lib/features";
 import { useAppData } from "@/components/useAppData";
 import { WaPreview } from "@/components/WaPreview";
 import { ScriptSections } from "@/components/ScriptSections";
@@ -94,6 +95,7 @@ export default function ScriptPage() {
 
   const kind = tab;
   const vars = VARS.filter((v) => kind !== "call" || !["{materiali}", "{giorno}", "{ora}", "{link_videocall}"].includes(v));
+  const shownVars = vars.filter((v) => SHOW_WA_ATTACHMENTS || v !== "{materiali}");
   const dirty = (drafts[kind] ?? "") !== (scripts.find((s) => s.kind === kind)?.body ?? "");
 
   return (
@@ -138,7 +140,7 @@ export default function ScriptPage() {
             )}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-slate-500">Inserisci:</span>
-              {vars.map((v) => (
+              {shownVars.map((v) => (
                 <button
                   key={v}
                   onClick={() => insertVar(v)}
@@ -169,7 +171,7 @@ export default function ScriptPage() {
           </div>
         </div>
 
-        {kind !== "call" && (
+        {kind !== "call" && SHOW_WA_ATTACHMENTS && (
           <div className="mt-5 rounded-2xl bg-[#767680]/[0.06] p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900">
               <Paperclip size={15} className="text-slate-400" /> Allegati (documenti, video, link)

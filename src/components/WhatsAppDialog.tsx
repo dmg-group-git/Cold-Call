@@ -5,6 +5,7 @@ import type { Lead, Material, Script, Settings } from "@/lib/types";
 import { appointmentVars, fillTemplate, materialsText, missingAppointmentVars, waLink, withMaterials, phoneKind } from "@/lib/utils";
 import { MessageCircle } from "lucide-react";
 import { WaPreview } from "./WaPreview";
+import { SHOW_WA_ATTACHMENTS } from "@/lib/features";
 import { Modal, btnGreen, btnSecondary, input, label } from "./ui";
 
 /**
@@ -49,6 +50,7 @@ export function WhatsAppDialog({
   // allegati predefiniti dello script scelto (impostati nella pagina Script)
   useEffect(() => {
     if (!open) return;
+    if (!SHOW_WA_ATTACHMENTS) return setSelected([]);
     const ids = scripts.find((s) => s.kind === template)?.material_ids ?? [];
     setSelected(ids.filter((id) => materials.some((m) => m.id === id)));
   }, [open, template, scripts, materials]);
@@ -115,10 +117,10 @@ export function WhatsAppDialog({
             <span className={label}>Modello</span>
             <select className={input} value={template} onChange={(e) => setTemplate(e.target.value as typeof kind)}>
               <option value="wa_no_answer">Non risponde</option>
-              <option value="wa_answered">Ha risposto (con materiali)</option>
+              <option value="wa_answered">Ha risposto</option>
             </select>
           </div>
-          {materials.length > 0 && (
+          {SHOW_WA_ATTACHMENTS && materials.length > 0 && (
             <div>
               <span className={label}>Materiali da allegare (come link)</span>
               <div className="space-y-1">
