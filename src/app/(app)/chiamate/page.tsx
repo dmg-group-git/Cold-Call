@@ -47,6 +47,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ScriptSections } from "@/components/ScriptSections";
+import { ObjectionsCard, syncObjections } from "@/components/ObjectionsCard";
 import {
   Alert,
   Avatar,
@@ -345,6 +346,8 @@ export default function ChiamatePage() {
       if (!res.ok) throw new Error(json.error || "Errore");
       const a = json.analysis as Analysis;
       setAnalysis(a);
+      // aggiorna l'elenco delle obiezioni in background
+      if (a.obiezioni.length) syncObjections().catch(() => {});
       setOutcome(a.esito);
       // aggiorna il lead in memoria (nome referente / email trovati)
       if (lead && (a.nome_referente || a.email_lead))
@@ -717,16 +720,19 @@ export default function ChiamatePage() {
         {/* SCRIPT oppure ESITO */}
         <div className="lg:col-span-3">
           {phase !== "result" ? (
-            <Card className="lg:sticky lg:top-6">
-              <CardTitle icon={FileText} tone="orange">{callScript?.title ?? "Script"}</CardTitle>
-              {callScript ? (
-                <ScriptSections text={fillTemplate(callScript.body, lead, settings)} large={focus} />
-              ) : (
-                <p className="text-[15px] text-slate-500">
-                  Nessuno script: crealo nella pagina <Link className={link} href="/script">Script</Link>.
-                </p>
-              )}
-            </Card>
+            <div className="space-y-6">
+              <Card>
+                <CardTitle icon={FileText} tone="orange">{callScript?.title ?? "Script"}</CardTitle>
+                {callScript ? (
+                  <ScriptSections text={fillTemplate(callScript.body, lead, settings)} large={focus} />
+                ) : (
+                  <p className="text-[15px] text-slate-500">
+                    Nessuno script: crealo nella pagina <Link className={link} href="/script">Script</Link>.
+                  </p>
+                )}
+              </Card>
+              <ObjectionsCard large={focus} />
+            </div>
           ) : (
             <Card className="space-y-6">
               <CardTitle icon={ClipboardCheck} tone="indigo" sub="Controlla, conferma le azioni e passa al prossimo lead.">
